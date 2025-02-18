@@ -17,7 +17,8 @@ public class ObjectCreationInterceptor {
         Object result = superCall.call();
         
         // 记录对象创建信息
-        // TODO: 实现对象跟踪逻辑
+        String objectId = System.identityHashCode(result) + "@" + result.getClass().getName();
+        MemoryLeakDetector.getInstance().recordObjectCreation(objectId, new ObjectInfo(result));
         
         return result;
     }

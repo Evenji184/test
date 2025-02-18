@@ -27,10 +27,13 @@ import java.util.concurrent.TimeUnit;
 public class MainWindow extends Application {
     private MemoryLeakDetector detector;
     private LineChart<Number, Number> memoryChart;
+    private LineChart<Number, Number> objectCountChart;
     private XYChart.Series<Number, Number> memorySeries;
+    private XYChart.Series<Number, Number> objectCountSeries;
     private TextArea reportArea;
     private ScheduledExecutorService scheduler;
     private long startTime;
+    private VBox chartContainer;
 
     @Override
     public void start(Stage stage) {
@@ -38,15 +41,31 @@ public class MainWindow extends Application {
         startTime = System.currentTimeMillis();
 
         // 创建内存使用图表
-        final NumberAxis xAxis = new NumberAxis("时间 (秒)", 0, 60, 10);
-        final NumberAxis yAxis = new NumberAxis("内存使用 (MB)", 0, 1000, 100);
-        memoryChart = new LineChart<>(xAxis, yAxis);
+        final NumberAxis memoryXAxis = new NumberAxis("时间 (秒)", 0, 60, 10);
+        final NumberAxis memoryYAxis = new NumberAxis("内存使用 (MB)", 0, 1000, 100);
+        memoryChart = new LineChart<>(memoryXAxis, memoryYAxis);
         memoryChart.setTitle("实时内存监控");
         memoryChart.setAnimated(false);
 
         memorySeries = new XYChart.Series<>();
         memorySeries.setName("堆内存使用");
         memoryChart.getData().add(memorySeries);
+
+        // 创建对象数量图表
+        final NumberAxis objectXAxis = new NumberAxis("时间 (秒)", 0, 60, 10);
+        final NumberAxis objectYAxis = new NumberAxis("对象数量", 0, 1000, 100);
+        objectCountChart = new LineChart<>(objectXAxis, objectYAxis);
+        objectCountChart.setTitle("对象创建监控");
+        objectCountChart.setAnimated(false);
+
+        objectCountSeries = new XYChart.Series<>();
+        objectCountSeries.setName("活跃对象数量");
+        objectCountChart.getData().add(objectCountSeries);
+
+        // 创建图表容器
+        chartContainer = new VBox(10);
+        chartContainer.getChildren().addAll(memoryChart, objectCountChart);
+        chartContainer.setAlignment(Pos.CENTER);
 
         // 创建控制按钮
         Button startButton = new Button("开始监控");
@@ -75,7 +94,7 @@ public class MainWindow extends Application {
         // 控制按钮区域
         VBox controlBox = new VBox(10);
         controlBox.setPadding(new Insets(10));
-        controlBox.getChildren().addAll(memoryChart, startButton, stopButton, analyzeButton, reportArea);
+        controlBox.getChildren().addAll(chartContainer, startButton, stopButton, analyzeButton, reportArea);
 
         // 主布局
         BorderPane root = new BorderPane();
@@ -113,12 +132,19 @@ public class MainWindow extends Application {
         MemorySnapshot snapshot = detector.takeSnapshot();
         final double timeInSeconds = (System.currentTimeMillis() - startTime) / 1000.0;
         final double memoryInMB = snapshot.getHeapUsage() / (1024.0 * 1024.0);
+        final int objectCount = snapshot.getObjectCount();
 
         Platform.runLater(() -> {
+            // 更新内存使用图表
             memorySeries.getData().add(new XYChart.Data<>(timeInSeconds, memoryInMB));
-            // 保持最近60秒的数据
             if (memorySeries.getData().size() > 60) {
                 memorySeries.getData().remove(0);
+            }
+
+            // 更新对象数量图表
+            objectCountSeries.getData().add(new XYChart.Data<>(timeInSeconds, objectCount));
+            if (objectCountSeries.getData().size() > 60) {
+                objectCountSeries.getData().remove(0);
             }
         });
     }

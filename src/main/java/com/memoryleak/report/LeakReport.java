@@ -10,6 +10,8 @@ public class LeakReport {
     private long memoryGrowth;
     private boolean potentialLeak;
     private final List<String> warnings;
+    private double growthRate;
+    private Map<String, Integer> objectTypeCounts;
 
     public LeakReport() {
         this.warnings = new ArrayList<>();
@@ -48,6 +50,14 @@ public class LeakReport {
         this.warnings.add(warning);
     }
 
+    public void setGrowthRate(double growthRate) {
+        this.growthRate = growthRate;
+    }
+
+    public void setObjectTypeCounts(Map<String, Integer> objectTypeCounts) {
+        this.objectTypeCounts = objectTypeCounts;
+    }
+
     @Override
     public String toString() {
         StringBuilder report = new StringBuilder();
@@ -55,8 +65,20 @@ public class LeakReport {
         report.append("=================\n");
         report.append(snapshot.toString()).append("\n");
         report.append(String.format("内存增长: %d bytes\n", memoryGrowth));
+        report.append(String.format("内存增长率: %.2f%%/s\n", growthRate));
         
         if (potentialLeak) {
+            report.append("\n对象创建统计:\n");
+            if (objectTypeCounts != null) {
+                objectTypeCounts.entrySet().stream()
+                    .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                    .limit(5)
+                    .forEach(entry -> {
+                        report.append(String.format("- %s: %d 个实例\n", 
+                            entry.getKey(), entry.getValue()));
+                    });
+            }
+            
             report.append("\n警告:\n");
             for (String warning : warnings) {
                 report.append("- ").append(warning).append("\n");
