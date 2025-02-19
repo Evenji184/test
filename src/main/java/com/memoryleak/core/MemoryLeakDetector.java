@@ -211,6 +211,80 @@ public class MemoryLeakDetector {
         }
     }
 
+    public void recordMemoryUsage(String activityName, String state, long usedMemory) {
+        if (isMonitoring) {
+            ObjectInfo info = new ObjectInfo();
+            info.className = activityName;
+            info.creationThread = Thread.currentThread();
+            info.creationTime = System.currentTimeMillis();
+            info.memoryUsage = usedMemory;
+            info.state = state;
+
+            String objectId = activityName + "@" + state + "@" + System.currentTimeMillis();
+            objectMap.put(objectId, info);
+        }
+    }
+
+    public void recordActivityDuration(String activityName, String state, long duration) {
+        if (isMonitoring) {
+            ObjectInfo info = new ObjectInfo();
+            info.className = activityName;
+            info.creationThread = Thread.currentThread();
+            info.creationTime = System.currentTimeMillis();
+            info.duration = duration;
+            info.state = state;
+
+            String objectId = activityName + "@" + state + "@" + System.currentTimeMillis();
+            objectMap.put(objectId, info);
+        }
+    }
+
+    public void recordPotentialLeak(String activityName, String state) {
+        if (isMonitoring) {
+            ObjectInfo info = new ObjectInfo();
+            info.className = activityName;
+            info.creationThread = Thread.currentThread();
+            info.creationTime = System.currentTimeMillis();
+            info.state = state;
+            info.isPotentialLeak = true;
+
+            String objectId = activityName + "@" + state + "@" + System.currentTimeMillis();
+            objectMap.put(objectId, info);
+
+            // 立即触发一次内存分析
+            MemorySnapshot snapshot = takeSnapshot();
+            LeakReport report = analyzeSnapshot(snapshot);
+            report.addWarning(String.format("检测到潜在的内存泄漏: %s 在 %s 状态", activityName, state));
+        }
+    }
+
+    public void recordObjectState(String activityName, String state, int objectSize) {
+        if (isMonitoring) {
+            ObjectInfo info = new ObjectInfo();
+            info.className = activityName;
+            info.creationThread = Thread.currentThread();
+            info.creationTime = System.currentTimeMillis();
+            info.state = state;
+            info.objectSize = objectSize;
+
+            String objectId = activityName + "@" + state + "@" + System.currentTimeMillis();
+            objectMap.put(objectId, info);
+        }
+    }
+
+    private static class ObjectInfo {
+        String className;
+        Thread creationThread;
+        long creationTime;
+        boolean isActivity;
+        Object retainedInstance;
+        long memoryUsage;
+        long duration;
+        String state;
+        boolean isPotentialLeak;
+        int objectSize;
+    }
+
     public void recordLeakedActivity(String activityName, Activity activity) {
         if (isMonitoring) {
             // 记录泄漏的Activity信息
