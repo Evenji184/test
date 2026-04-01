@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
+const { validationResult } = require('express-validator');
 const User = require('../models/user.model');
 
 const generateToken = (userId) => {
@@ -10,6 +11,14 @@ const generateToken = (userId) => {
 
 const register = async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: errors.array()[0].msg
+      });
+    }
+
     const { username, email, password } = req.body;
 
     const existingUser = await User.findOne({
@@ -39,6 +48,14 @@ const register = async (req, res, next) => {
 
 const login = async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: errors.array()[0].msg
+      });
+    }
+
     const { email, password } = req.body;
 
     const user = await User.scope('withPassword').findOne({ where: { email } });

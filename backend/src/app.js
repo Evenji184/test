@@ -41,7 +41,8 @@ File.addHook('afterFind', (result) => {
 app.use(helmet());
 app.use(cors({
   origin: process.env.CLIENT_URL,
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Content-Disposition']
 }));
 app.use(morgan('dev'));
 app.use(express.json());

@@ -23,6 +23,13 @@ body {
   text-decoration: none;
 }
 
+.link-button {
+  background: transparent;
+  border: none;
+  color: #fff;
+  padding: 0;
+}
+
 .container {
   max-width: 960px;
   margin: 24px auto;
@@ -68,4 +75,47 @@ button {
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid #eee;
+}
+
+.auth-card {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.auth-subtitle {
+  color: #5b6475;
+  margin-bottom: 16px;
+}
+
+.auth-switch-text {
+  margin-top: 16px;
+  color: #5b6475;
+}
+
+.text-button {
+  background: transparent;
+  color: #1f3c88;
+  border: none;
+  padding: 0 0 0 8px;
+  text-decoration: underline;
+}
+
+.user-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.upload-tip,
+.status-message {
+  margin: 8px 0 0;
+}
+
+.success-text {
+  color: #1f7a1f;
+}
+
+.error-text {
+  color: #c62828;
 }

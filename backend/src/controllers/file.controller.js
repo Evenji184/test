@@ -6,6 +6,10 @@ const User = require('../models/user.model');
 
 const uploadFiles = async (req, res, next) => {
   try {
+    if (!req.userId) {
+      return res.status(401).json({ success: false, error: '请先登录后再上传文件' });
+    }
+
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, error: '请选择要上传的文件' });
     }
