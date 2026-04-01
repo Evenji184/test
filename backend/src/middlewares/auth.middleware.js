@@ -17,7 +17,7 @@ const authenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // 查找用户
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await User.findByPk(decoded.userId);
     
     if (!user) {
       return res.status(401).json({ 
@@ -27,7 +27,7 @@ const authenticate = async (req, res, next) => {
 
     // 将用户信息添加到请求对象
     req.user = user;
-    req.userId = user._id;
+    req.userId = user.id;
     
     next();
   } catch (error) {
@@ -55,10 +55,10 @@ const optionalAuth = async (req, res, next) => {
     
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId).select('-password');
+      const user = await User.findByPk(decoded.userId);
       if (user) {
         req.user = user;
-        req.userId = user._id;
+        req.userId = user.id;
       }
     }
     

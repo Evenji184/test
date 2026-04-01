@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const { Op } = require('sequelize');
 const File = require('../models/file.model');
+const User = require('../models/user.model');
 
 const uploadFiles = async (req, res, next) => {
   try {
@@ -34,9 +36,19 @@ const uploadFiles = async (req, res, next) => {
 
 const getFiles = async (req, res, next) => {
   try {
-    const files = await File.find({
-      $or: [{ uploadedBy: req.userId }, { isPublic: true }]
-    }).populate('uploadedBy', 'username email');
+    const files = await File.findAll({
+      where: {
+        [Op.or]: [{ uploadedBy: req.userId }, { isPublic: true }]
+      },
+      include: [
+        {
+          model: User,
+          as: 'uploader',
+          attributes: ['id', 'username', 'email']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
 
     res.json({ success: true, data: files });
   } catch (error) {
@@ -46,7 +58,7 @@ const getFiles = async (req, res, next) => {
 
 const downloadFile = async (req, res, next) => {
   try {
-    const file = await File.findById(req.params.id);
+    const file = await File.findByPk(req.params.id);
     if (!file) {
       return res.status(404).json({ success: false, error: '文件不存在' });
     }
@@ -72,7 +84,7 @@ const downloadFile = async (req, res, next) => {
 
 const deleteFile = async (req, res, next) => {
   try {
-    const file = await File.findById(req.params.id);
+    const file = await File.findByPk(req.params.id);
     if (!file) {
       return res.status(404).json({ success: false, error: '文件不存在' });
     }
@@ -86,7 +98,7 @@ const deleteFile = async (req, res, next) => {
       fs.unlinkSync(filePath);
     }
 
-    await file.deleteOne();
+    await file.destroy();
 
     res.json({ success: true, message: '文件删除成功' });
   } catch (error) {

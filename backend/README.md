@@ -2,7 +2,7 @@
 
 ## 项目介绍
 
-这是一个基于 Node.js、Express 和 MongoDB 的文件共享系统后台服务，负责处理用户认证、文件上传、文件下载、文件列表查询和文件删除等功能。
+这是一个基于 Node.js、Express 和 MySQL 的文件共享系统后台服务，负责处理用户认证、文件上传、文件下载、文件列表查询和文件删除等功能。
 
 后台提供 RESTful API，配合前端页面实现完整的文件共享流程。当前版本采用本地文件系统存储上传文件，并使用 JWT 进行用户身份认证。
 
@@ -10,7 +10,7 @@
 
 - Node.js
 - Express
-- MongoDB + Mongoose
+- MySQL + Sequelize
 - Multer
 - JWT
 - bcryptjs
@@ -26,6 +26,7 @@ backend/
 └── src/
     ├── app.js                   # 应用入口
     ├── config/
+    │   ├── database.config.js   # MySQL 数据库配置
     │   └── multer.config.js     # 文件上传配置
     ├── controllers/
     │   ├── auth.controller.js   # 用户认证控制器
@@ -78,7 +79,11 @@ backend/
 可在 [`backend/.env`](backend/.env) 中配置：
 
 - `PORT`：服务端口
-- `MONGODB_URI`：MongoDB 连接地址
+- `DB_HOST`：MySQL 主机地址
+- `DB_PORT`：MySQL 端口
+- `DB_NAME`：MySQL 数据库名
+- `DB_USER`：MySQL 用户名
+- `DB_PASSWORD`：MySQL 密码
 - `JWT_SECRET`：JWT 密钥
 - `JWT_EXPIRE`：JWT 过期时间
 - `MAX_FILE_SIZE`：单文件大小限制
@@ -93,9 +98,27 @@ backend/
 npm install
 ```
 
-### 2. 启动 MongoDB
+如果是从 MongoDB 版本切换过来，需重新安装依赖以移除 [`mongoose`](backend/package.json:1) 并安装 [`mysql2`](backend/package.json:1) 与 [`sequelize`](backend/package.json:1)。
 
-请确保本地 MongoDB 已启动，并且连接地址与 [`backend/.env`](backend/.env) 中的 `MONGODB_URI` 一致。
+### 2. 启动 MySQL
+
+请确保本地 MySQL 已启动，并提前创建好数据库，且连接信息与 [`backend/.env`](backend/.env) 中的 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD` 一致。
+
+可参考以下配置：
+
+```env
+PORT=5000
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=file_share
+DB_USER=root
+DB_PASSWORD=123456
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRE=7d
+MAX_FILE_SIZE=10485760
+UPLOAD_DIR=uploads/
+CLIENT_URL=http://localhost:5173
+```
 
 ### 3. 启动开发服务
 
@@ -113,4 +136,4 @@ npm start
 
 - 上传文件默认保存在 `uploads/` 目录
 - 当前版本使用本地存储，后续可扩展为云存储
-- 若 MongoDB 未启动，服务会在数据库连接阶段报错
+- 若 MySQL 未启动或连接信息错误，服务会在数据库连接阶段报错

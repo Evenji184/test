@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
 const User = require('../models/user.model');
 
 const generateToken = (userId) => {
@@ -12,7 +13,9 @@ const register = async (req, res, next) => {
     const { username, email, password } = req.body;
 
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+      where: {
+        [Op.or]: [{ email }, { username }]
+      }
     });
 
     if (existingUser) {
@@ -20,7 +23,7 @@ const register = async (req, res, next) => {
     }
 
     const user = await User.create({ username, email, password });
-    const token = generateToken(user._id);
+    const token = generateToken(user.id);
 
     res.status(201).json({
       success: true,
@@ -38,7 +41,7 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.scope('withPassword').findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ success: false, error: '邮箱或密码错误' });
     }
@@ -51,7 +54,7 @@ const login = async (req, res, next) => {
     user.lastLogin = new Date();
     await user.save();
 
-    const token = generateToken(user._id);
+    const token = generateToken(user.id);
 
     res.json({
       success: true,
