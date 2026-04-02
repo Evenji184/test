@@ -93,8 +93,9 @@ backend/
 可在 [`backend/.env`](backend/.env) 中配置：
 
 - `PORT`：服务端口
-- `DB_HOST`：MySQL 主机地址
+- `DB_HOST`：MySQL 主机地址，兼容 IPv4/IPv6，例如 `127.0.0.1`、`localhost`、`::1`，若使用带方括号的 IPv6 字面量如 `[::1]` 也可正常解析
 - `DB_PORT`：MySQL 端口
+- `DB_FAMILY`：可选，强制地址族，`4` 表示仅 IPv4，`6` 表示仅 IPv6；不配置时自动兼容 IPv4/IPv6
 - `DB_NAME`：MySQL 数据库名
 - `DB_USER`：MySQL 用户名
 - `DB_PASSWORD`：MySQL 密码
@@ -123,8 +124,9 @@ npm install
 
 ```env
 PORT=5000
-DB_HOST=127.0.0.1
+DB_HOST=localhost
 DB_PORT=3306
+DB_FAMILY=
 DB_NAME=file_share
 DB_USER=root
 DB_PASSWORD=123456
@@ -151,6 +153,20 @@ CLIENT_URL=http://localhost:5173
 - 邮箱：来自 `DEFAULT_ADMIN_EMAIL`
 
 生产环境必须修改默认管理员密码。
+
+### 2.2 数据库地址兼容说明
+
+数据库连接默认兼容 IPv4 与 IPv6：
+
+- `DB_HOST=localhost`：推荐，交由系统自动解析可用地址
+- `DB_HOST=127.0.0.1`：显式使用 IPv4
+- `DB_HOST=::1`：显式使用 IPv6
+- `DB_HOST=[::1]`：也支持带方括号的 IPv6 写法，服务启动时会自动规范化
+
+如需强制只使用某一地址族，可额外配置：
+
+- `DB_FAMILY=4`：仅使用 IPv4
+- `DB_FAMILY=6`：仅使用 IPv6
 
 ### 3. 启动开发服务
 
