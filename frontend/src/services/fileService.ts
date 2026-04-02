@@ -1,8 +1,8 @@
 import { api } from './api';
 
 export const fileService = {
-  getFiles() {
-    return api.get('/files').then((res) => res.data);
+  getFiles(params?: { space?: 'personal' | 'public'; keyword?: string }) {
+    return api.get('/files', { params }).then((res) => res.data);
   },
   uploadFiles(formData: FormData) {
     return api.post('/files/upload', formData).then((res) => res.data);

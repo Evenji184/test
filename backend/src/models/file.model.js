@@ -53,6 +53,11 @@ File.init(
         key: 'id'
       }
     },
+    spaceType: {
+      type: DataTypes.ENUM('personal', 'public'),
+      allowNull: false,
+      defaultValue: 'personal'
+    },
     isPublic: {
       type: DataTypes.BOOLEAN,
       defaultValue: false

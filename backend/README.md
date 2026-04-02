@@ -64,6 +64,8 @@ backend/
 - 文件列表查询
 - 文件下载
 - 文件删除
+- 个人空间与公共空间隔离
+- 文件列表关键字模糊搜索
 - 文件类型与大小限制
 - 文件上传白名单校验与路径遍历防护
 
@@ -83,8 +85,8 @@ backend/
 
 ### 文件接口
 
-- `GET /api/files`：获取文件列表
-- `POST /api/files/upload`：上传文件
+- `GET /api/files`：获取文件列表，支持 `space=public|personal` 与 `keyword=关键字`
+- `POST /api/files/upload`：上传文件，支持 `spaceType=public|personal`
 - `GET /api/files/:id/download`：下载文件
 - `DELETE /api/files/:id`：删除文件
 
@@ -185,6 +187,8 @@ npm start
 - 上传文件默认保存在 `uploads/` 目录
 - 上传仅允许 `jpg`、`jpeg`、`png`、`gif`、`webp`、`pdf`、`txt`、`doc`、`docx` 类型
 - 单文件大小限制为 10MB，服务端会为文件生成随机安全文件名
+- 文件支持上传到“公共空间”或“个人空间”，普通用户只能查看自己的个人空间文件，管理员可查看所有人的个人空间文件
+- 文件列表支持按文件名、存储名或 MIME 类型进行模糊搜索
 - 下载与删除前会校验文件真实路径必须位于 [`uploads/`](backend/uploads) 目录内，防止路径遍历
 - 注册页和账号管理页仅管理员可访问
 - 注册时会校验 `username` 与 `email` 是否重复

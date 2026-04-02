@@ -13,6 +13,48 @@ const isPathInsideUploadDir = (targetPath) => {
   return relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
 };
 
+const getFileAccessWhere = (user, space = 'public', keyword = '') => {
+  const normalizedSpace = space === 'personal' ? 'personal' : 'public';
+  const trimmedKeyword = keyword.trim();
+  const searchConditions = trimmedKeyword
+    ? [
+        { originalName: { [Op.like]: `%${trimmedKeyword}%` } },
+        { filename: { [Op.like]: `%${trimmedKeyword}%` } },
+        { mimetype: { [Op.like]: `%${trimmedKeyword}%` } }
+      ]
+    : [];
+
+  const where = {
+    spaceType: normalizedSpace
+  };
+
+  if (normalizedSpace === 'personal' && user.role !== 'admin') {
+    where.uploadedBy = user.id;
+  }
+
+  if (normalizedSpace === 'public') {
+    where.isPublic = true;
+  }
+
+  if (searchConditions.length > 0) {
+    where[Op.or] = searchConditions;
+  }
+
+  return where;
+};
+
+const canAccessFile = (file, user) => {
+  if (user.role === 'admin') {
+    return true;
+  }
+
+  if (file.spaceType === 'public' || file.isPublic) {
+    return true;
+  }
+
+  return String(file.uploadedBy) === String(user.id);
+};
+
 const uploadFiles = async (req, res, next) => {
   try {
     if (!req.userId) {
@@ -23,6 +65,8 @@ const uploadFiles = async (req, res, next) => {
       return res.status(400).json({ success: false, error: '请选择要上传的文件' });
     }
 
+    const spaceType = req.body.spaceType === 'public' ? 'public' : 'personal';
+
     const createdFiles = await Promise.all(
       req.files.map((file) =>
         File.create({
@@ -32,7 +76,8 @@ const uploadFiles = async (req, res, next) => {
           size: file.size,
           path: file.path,
           uploadedBy: req.userId,
-          isPublic: req.body.isPublic === 'true',
+          spaceType,
+          isPublic: spaceType === 'public',
           description: req.body.description || ''
         })
       )
@@ -49,10 +94,10 @@ const uploadFiles = async (req, res, next) => {
 
 const getFiles = async (req, res, next) => {
   try {
+    const where = getFileAccessWhere(req.user, req.query.space, String(req.query.keyword || ''));
+
     const files = await File.findAll({
-      where: {
-        [Op.or]: [{ uploadedBy: req.userId }, { isPublic: true }]
-      },
+      where,
       include: [
         {
           model: User,
@@ -76,7 +121,7 @@ const downloadFile = async (req, res, next) => {
       return res.status(404).json({ success: false, error: '文件不存在' });
     }
 
-    const canAccess = file.isPublic || String(file.uploadedBy) === String(req.userId);
+    const canAccess = canAccessFile(file, req.user);
     if (!canAccess) {
       return res.status(403).json({ success: false, error: '无权访问该文件' });
     }
@@ -106,7 +151,7 @@ const deleteFile = async (req, res, next) => {
       return res.status(404).json({ success: false, error: '文件不存在' });
     }
 
-    if (String(file.uploadedBy) !== String(req.userId)) {
+    if (String(file.uploadedBy) !== String(req.userId) && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, error: '只能删除自己上传的文件' });
     }
 

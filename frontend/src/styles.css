@@ -51,6 +51,7 @@ body {
 }
 
 input,
+select,
 button {
   padding: 10px 12px;
   border-radius: 8px;
@@ -148,4 +149,11 @@ button {
 .secondary-button {
   background: #fff;
   color: #1f3c88;
+}
+
+.form-inline {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
 }

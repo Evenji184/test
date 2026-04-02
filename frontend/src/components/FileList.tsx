@@ -2,8 +2,16 @@ import { useEffect, useState } from 'react';
 import { SharedFile } from '../pages/DashboardPage';
 import { fileService } from '../services/fileService';
 
-export function FileList({ files, onRefresh }: { files: SharedFile[]; onRefresh: () => void }) {
+export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: SharedFile[]; onRefresh: () => void; currentUserId?: number; isAdmin?: boolean }) {
   const [message, setMessage] = useState('');
+
+  const getUploaderId = (uploadedBy: SharedFile['uploadedBy']) => {
+    if (typeof uploadedBy === 'number') {
+      return uploadedBy;
+    }
+
+    return uploadedBy?.id;
+  };
 
   useEffect(() => {
     if (!message) {
@@ -41,12 +49,21 @@ export function FileList({ files, onRefresh }: { files: SharedFile[]; onRefresh:
       <ul className="file-list">
         {files.map((file) => (
           <li key={file.id}>
-            <span>{file.originalName}</span>
+            <span>
+              {file.originalName}
+              {' '}
+              <small>[{file.spaceType === 'personal' ? '个人空间' : '公共空间'}]</small>
+              {file.uploadedBy && typeof file.uploadedBy === 'object' && (
+                <small> 上传者：{file.uploadedBy.username}</small>
+              )}
+            </span>
             <div>
               <button type="button" onClick={() => handleDownload(String(file.id), file.originalName)}>
                 下载
               </button>
-              <button onClick={() => handleDelete(String(file.id))}>删除</button>
+              {(isAdmin || getUploaderId(file.uploadedBy) === currentUserId) && (
+                <button onClick={() => handleDelete(String(file.id))}>删除</button>
+              )}
             </div>
           </li>
         ))}

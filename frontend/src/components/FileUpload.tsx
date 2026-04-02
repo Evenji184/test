@@ -5,6 +5,7 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
   const [files, setFiles] = useState<FileList | null>(null);
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [spaceType, setSpaceType] = useState<'personal' | 'public'>('public');
 
   useEffect(() => {
     if (!message) {
@@ -23,6 +24,7 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
     try {
       const formData = new FormData();
       Array.from(files).forEach((file) => formData.append('files', file));
+      formData.append('spaceType', spaceType);
       await fileService.uploadFiles(formData);
       setMessage('上传成功');
       setFiles(null);
@@ -38,6 +40,10 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
     <div className="card">
       <h2>上传文件</h2>
       <p className="upload-tip">支持所有文件类型上传，单文件默认最大 5GB。</p>
+      <select value={spaceType} onChange={(e) => setSpaceType(e.target.value as 'personal' | 'public')}>
+        <option value="public">公共空间</option>
+        <option value="personal">个人空间</option>
+      </select>
       <input
         type="file"
         multiple

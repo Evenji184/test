@@ -12,6 +12,8 @@ export interface SharedFile {
   size: number;
   downloads: number;
   createdAt: string;
+  spaceType: 'personal' | 'public';
+  uploadedBy?: number | { id: number; username: string; email: string };
 }
 
 export function DashboardPage() {
@@ -23,6 +25,8 @@ export function DashboardPage() {
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [space, setSpace] = useState<'personal' | 'public'>('public');
+  const [keyword, setKeyword] = useState('');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -44,7 +48,7 @@ export function DashboardPage() {
 
   const loadFiles = async () => {
     try {
-      const result = await fileService.getFiles();
+      const result = await fileService.getFiles({ space, keyword: keyword.trim() || undefined });
       setFiles(result.data);
       setMessage('');
     } catch (error: any) {
@@ -108,8 +112,11 @@ export function DashboardPage() {
 
   useEffect(() => {
     loadProfile();
-    loadFiles();
   }, []);
+
+  useEffect(() => {
+    loadFiles();
+  }, [space]);
 
   return (
     <section>
@@ -138,8 +145,29 @@ export function DashboardPage() {
           </button>
         )}
       </div>
+      <div className="card">
+        <h2>空间与搜索</h2>
+        <div className="form-inline">
+          <select value={space} onChange={(e) => setSpace(e.target.value as 'personal' | 'public')}>
+            <option value="public">公共空间</option>
+            <option value="personal">个人空间</option>
+          </select>
+          <input
+            type="text"
+            placeholder="按文件名或后缀搜索"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+          />
+          <button type="button" onClick={loadFiles}>搜索</button>
+        </div>
+        {space === 'personal' ? (
+          <p className="upload-tip">普通用户仅可查看自己的个人空间文件，管理员可查看所有人的个人空间文件。</p>
+        ) : (
+          <p className="upload-tip">公共空间文件对所有已登录用户可见。</p>
+        )}
+      </div>
       <FileUpload onUploaded={loadFiles} />
-      <FileList files={files} onRefresh={loadFiles} />
+      <FileList files={files} onRefresh={loadFiles} currentUserId={user?.id} isAdmin={user?.role === 'admin'} />
       {showPasswordModal && (
         <div className="modal-overlay" onClick={closePasswordModal}>
           <div className="modal-content card" onClick={(e) => e.stopPropagation()}>
