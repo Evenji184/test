@@ -9,5 +9,11 @@ export const authService = {
   },
   getProfile() {
     return api.get('/auth/me').then((res) => res.data);
+  },
+  changePassword(payload: { oldPassword: string; newPassword: string }) {
+    return api.put('/auth/change-password', payload).then((res) => res.data);
+  },
+  logout() {
+    localStorage.removeItem('token');
   }
 };

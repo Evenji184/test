@@ -17,8 +17,12 @@ export interface SharedFile {
 export function DashboardPage() {
   const navigate = useNavigate();
   const [files, setFiles] = useState<SharedFile[]>([]);
-  const [user, setUser] = useState<{ username: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ id: number; username: string; email: string; role: 'user' | 'admin' } | null>(null);
   const [message, setMessage] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -31,8 +35,10 @@ export function DashboardPage() {
       const result = await authService.getProfile();
       setUser(result.data);
     } catch (error: any) {
+      authService.logout();
       setUser(null);
       setMessage(error.response?.data?.error || '当前未登录');
+      navigate('/login', { replace: true });
     }
   };
 
@@ -42,8 +48,61 @@ export function DashboardPage() {
       setFiles(result.data);
       setMessage('');
     } catch (error: any) {
+      if (error.response?.status === 401) {
+        authService.logout();
+        navigate('/login', { replace: true });
+        return;
+      }
+
       setFiles([]);
       setMessage(error.response?.data?.error || '加载文件失败');
+    }
+  };
+
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordError('');
+    setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    setPasswordSubmitting(false);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('新密码至少 6 个字符');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('两次输入的新密码不一致');
+      return;
+    }
+
+    if (passwordForm.oldPassword === passwordForm.newPassword) {
+      setPasswordError('新密码不能与旧密码相同');
+      return;
+    }
+
+    try {
+      setPasswordSubmitting(true);
+      await authService.changePassword({
+        oldPassword: passwordForm.oldPassword,
+        newPassword: passwordForm.newPassword
+      });
+      setMessage('密码修改成功');
+      closePasswordModal();
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        authService.logout();
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      setPasswordError(error.response?.data?.error || '密码修改失败');
+    } finally {
+      setPasswordSubmitting(false);
     }
   };
 
@@ -57,8 +116,21 @@ export function DashboardPage() {
       <div className="card user-card">
         <div>
           <h2>当前用户</h2>
-          {user ? <p>{user.username}（{user.email}）</p> : <p>未登录</p>}
+          {user ? <p>{user.username}（{user.email} / {user.role}）</p> : <p>未登录</p>}
           {message && <p className="status-message error-text">{message}</p>}
+          {user && (
+            <p>
+              <button type="button" className="link-button dashboard-link-button" onClick={() => setShowPasswordModal(true)}>
+                修改密码
+              </button>
+            </p>
+          )}
+          {user?.role === 'admin' && (
+            <p>
+              <button type="button" className="link-button" onClick={() => navigate('/register')}>注册账号</button>
+              <button type="button" className="link-button" onClick={() => navigate('/users')}>账号管理</button>
+            </p>
+          )}
         </div>
         {user && (
           <button type="button" onClick={handleLogout}>
@@ -68,6 +140,45 @@ export function DashboardPage() {
       </div>
       <FileUpload onUploaded={loadFiles} />
       <FileList files={files} onRefresh={loadFiles} />
+      {showPasswordModal && (
+        <div className="modal-overlay" onClick={closePasswordModal}>
+          <div className="modal-content card" onClick={(e) => e.stopPropagation()}>
+            <h3>修改密码</h3>
+            <form className="form" onSubmit={handleChangePassword}>
+              <input
+                type="password"
+                placeholder="旧密码"
+                value={passwordForm.oldPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                required
+              />
+              <input
+                type="password"
+                placeholder="新密码"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                required
+              />
+              <input
+                type="password"
+                placeholder="确认新密码"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                required
+              />
+              {passwordError && <p className="status-message error-text">{passwordError}</p>}
+              <div className="modal-actions">
+                <button type="submit" disabled={passwordSubmitting}>
+                  {passwordSubmitting ? '提交中...' : '确认修改'}
+                </button>
+                <button type="button" className="secondary-button" onClick={closePasswordModal}>
+                  取消
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

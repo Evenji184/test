@@ -5,12 +5,14 @@ const morgan = require('morgan');
 const path = require('path');
 require('dotenv').config();
 const sequelize = require('./config/database.config');
+const { initDefaultAdmin } = require('./config/init-admin');
 const User = require('./models/user.model');
 const File = require('./models/file.model');
 
 // 导入路由
 const authRoutes = require('./routes/auth.routes');
 const fileRoutes = require('./routes/file.routes');
+const userRoutes = require('./routes/user.routes');
 
 // 导入错误处理中间件
 const errorHandler = require('./middlewares/error.middleware');
@@ -54,6 +56,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // API路由
 app.use('/api/auth', authRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/users', userRoutes);
 
 // 健康检查
 app.get('/health', (req, res) => {
@@ -74,6 +77,7 @@ const startServer = async () => {
   try {
     await sequelize.authenticate();
     await sequelize.sync();
+    await initDefaultAdmin();
     console.log('✅ MySQL 数据库连接成功');
 
     app.listen(PORT, () => {

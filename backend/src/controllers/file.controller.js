@@ -4,6 +4,15 @@ const { Op } = require('sequelize');
 const File = require('../models/file.model');
 const User = require('../models/user.model');
 
+const uploadRoot = path.resolve(process.env.UPLOAD_DIR || './uploads');
+
+const isPathInsideUploadDir = (targetPath) => {
+  const resolvedTargetPath = path.resolve(targetPath);
+  const relativePath = path.relative(uploadRoot, resolvedTargetPath);
+
+  return relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+};
+
 const uploadFiles = async (req, res, next) => {
   try {
     if (!req.userId) {
@@ -73,6 +82,10 @@ const downloadFile = async (req, res, next) => {
     }
 
     const filePath = path.resolve(file.path);
+    if (!isPathInsideUploadDir(filePath)) {
+      return res.status(403).json({ success: false, error: '非法的文件路径' });
+    }
+
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, error: '文件内容不存在' });
     }
@@ -98,6 +111,10 @@ const deleteFile = async (req, res, next) => {
     }
 
     const filePath = path.resolve(file.path);
+    if (!isPathInsideUploadDir(filePath)) {
+      return res.status(403).json({ success: false, error: '非法的文件路径' });
+    }
+
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }

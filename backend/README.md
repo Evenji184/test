@@ -44,12 +44,19 @@ backend/
 
 ## 核心功能
 
-### 1. 用户认证
+### 1. 用户认证与权限
 
-- 用户注册
+- 管理员注册用户
 - 用户登录
+- 用户修改自己的密码
 - 获取当前登录用户信息
 - JWT 鉴权保护接口
+- 基于 `role` 字段的管理员权限控制
+
+### 1.1 角色说明
+
+- `user`：普通用户，可登录并管理文件
+- `admin`：管理员，可访问注册页、账号管理页并创建新账号
 
 ### 2. 文件管理
 
@@ -58,14 +65,21 @@ backend/
 - 文件下载
 - 文件删除
 - 文件类型与大小限制
+- 文件上传白名单校验与路径遍历防护
 
 ## 主要接口
 
 ### 认证接口
 
-- `POST /api/auth/register`：注册
+- `POST /api/auth/register`：管理员注册新账号（需管理员登录）
 - `POST /api/auth/login`：登录
 - `GET /api/auth/me`：获取当前用户信息
+- `PUT /api/auth/change-password`：修改当前登录用户密码（需登录）
+
+### 账号管理接口
+
+- `GET /api/users`：获取账号列表（仅管理员）
+- `PUT /api/users/:id`：更新账号角色（仅管理员）
 
 ### 文件接口
 
@@ -86,7 +100,8 @@ backend/
 - `DB_PASSWORD`：MySQL 密码
 - `JWT_SECRET`：JWT 密钥
 - `JWT_EXPIRE`：JWT 过期时间
-- `MAX_FILE_SIZE`：单文件大小限制
+- `DEFAULT_ADMIN_PASSWORD`：默认管理员 `evenji` 的初始密码
+- `DEFAULT_ADMIN_EMAIL`：默认管理员 `evenji` 的邮箱
 - `UPLOAD_DIR`：上传目录
 - `CLIENT_URL`：前端地址
 
@@ -115,10 +130,27 @@ DB_USER=root
 DB_PASSWORD=123456
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRE=7d
-MAX_FILE_SIZE=10485760
+DEFAULT_ADMIN_PASSWORD=admin123
+DEFAULT_ADMIN_EMAIL=evenji@example.com
 UPLOAD_DIR=uploads/
 CLIENT_URL=http://localhost:5173
 ```
+
+### 2.1 默认管理员账号
+
+服务启动并完成 [`sequelize.sync()`](backend/src/app.js:77) 后，会自动检查用户名为 `evenji` 的账号：
+
+- 若不存在，则自动创建为管理员账号
+- 若已存在但不是管理员，则自动提升为管理员
+
+默认管理员账号规则：
+
+- 用户名：`evenji`
+- 角色：`admin`
+- 密码：来自 `DEFAULT_ADMIN_PASSWORD`
+- 邮箱：来自 `DEFAULT_ADMIN_EMAIL`
+
+生产环境必须修改默认管理员密码。
 
 ### 3. 启动开发服务
 
@@ -135,5 +167,12 @@ npm start
 ## 说明
 
 - 上传文件默认保存在 `uploads/` 目录
+- 上传仅允许 `jpg`、`jpeg`、`png`、`gif`、`webp`、`pdf`、`txt`、`doc`、`docx` 类型
+- 单文件大小限制为 10MB，服务端会为文件生成随机安全文件名
+- 下载与删除前会校验文件真实路径必须位于 [`uploads/`](backend/uploads) 目录内，防止路径遍历
+- 注册页和账号管理页仅管理员可访问
+- 注册时会校验 `username` 与 `email` 是否重复
+- 已登录用户可在首页打开修改密码弹窗，提交旧密码和新密码完成密码更新
+- 前端在检测到未登录或令牌失效时会自动跳转到 [`/login`](frontend/src/pages/LoginPage.tsx:5)
 - 当前版本使用本地存储，后续可扩展为云存储
 - 若 MySQL 未启动或连接信息错误，服务会在数据库连接阶段报错

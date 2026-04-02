@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { authService } from '../services/authService';
 
-export function LoginPage() {
+export function RegisterPage() {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -14,13 +14,16 @@ export function LoginPage() {
     setMessage('');
 
     try {
-      const result = await authService.login({ email, password });
-
-      localStorage.setItem('token', result.data.token);
-      setMessage('登录成功');
-      window.location.href = result.data.user.role === 'admin' ? '/users' : '/';
+      await authService.register({ username, email, password });
+      setMessage('注册成功');
+      setUsername('');
+      setEmail('');
+      setPassword('');
+      window.setTimeout(() => {
+        window.location.href = '/users';
+      }, 800);
     } catch (error: any) {
-      setMessage(error.response?.data?.error || '登录失败');
+      setMessage(error.response?.data?.error || '注册失败');
     } finally {
       setSubmitting(false);
     }
@@ -28,16 +31,16 @@ export function LoginPage() {
 
   return (
     <section className="auth-card card">
-      <h2>登录账号</h2>
-      <p className="auth-subtitle">登录后可查看个人信息并上传文件。注册入口仅对管理员开放。</p>
+      <h2>注册账号</h2>
+      <p className="auth-subtitle">仅管理员可创建新账号，注册时会同时校验用户名和邮箱唯一性。</p>
       <form onSubmit={handleSubmit} className="form">
+        <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="用户名" />
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱" />
         <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="密码" type="password" />
         <button type="submit" disabled={submitting}>
-          {submitting ? '提交中...' : '登录'}
+          {submitting ? '提交中...' : '创建账号'}
         </button>
       </form>
-      <p className="auth-switch-text"><Link to="/">返回首页</Link></p>
       <p>{message}</p>
     </section>
   );

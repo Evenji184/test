@@ -3,8 +3,8 @@ const { Op } = require('sequelize');
 const { validationResult } = require('express-validator');
 const User = require('../models/user.model');
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+const generateToken = (userId, role) => {
+  return jwt.sign({ userId, role }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '7d'
   });
 };
@@ -21,18 +21,31 @@ const register = async (req, res, next) => {
 
     const { username, email, password } = req.body;
 
-    const existingUser = await User.findOne({
+    const existingUsers = await User.findAll({
       where: {
         [Op.or]: [{ email }, { username }]
       }
     });
 
-    if (existingUser) {
-      return res.status(400).json({ success: false, error: '用户名或邮箱已存在' });
+    if (existingUsers.length > 0) {
+      const duplicatedUsername = existingUsers.some((item) => item.username === username);
+      const duplicatedEmail = existingUsers.some((item) => item.email === email);
+
+      if (duplicatedUsername && duplicatedEmail) {
+        return res.status(400).json({ success: false, error: '用户名和邮箱均已存在' });
+      }
+
+      if (duplicatedUsername) {
+        return res.status(400).json({ success: false, error: '用户名已存在' });
+      }
+
+      if (duplicatedEmail) {
+        return res.status(400).json({ success: false, error: '邮箱已存在' });
+      }
     }
 
     const user = await User.create({ username, email, password });
-    const token = generateToken(user.id);
+    const token = generateToken(user.id, user.role);
 
     res.status(201).json({
       success: true,
@@ -71,7 +84,7 @@ const login = async (req, res, next) => {
     user.lastLogin = new Date();
     await user.save();
 
-    const token = generateToken(user.id);
+    const token = generateToken(user.id, user.role);
 
     res.json({
       success: true,
@@ -92,8 +105,43 @@ const getProfile = async (req, res) => {
   });
 };
 
+const changePassword = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: errors.array()[0].msg
+      });
+    }
+
+    const { oldPassword, newPassword } = req.body;
+    const user = await User.scope('withPassword').findByPk(req.userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: '用户不存在' });
+    }
+
+    const isMatch = await user.comparePassword(oldPassword);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, error: '旧密码错误' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: '密码修改成功'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
-  getProfile
+  getProfile,
+  changePassword
 };
