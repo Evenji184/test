@@ -2,9 +2,22 @@ import axios from 'axios';
 
 const defaultBaseURL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 const devBaseURL = '/api';
+const configuredBaseURL = import.meta.env.VITE_API_BASE_URL?.trim();
+
+const getBaseURL = () => {
+  if (configuredBaseURL) {
+    return configuredBaseURL;
+  }
+
+  if (import.meta.env.DEV) {
+    return devBaseURL;
+  }
+
+  return defaultBaseURL;
+};
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? devBaseURL : defaultBaseURL),
+  baseURL: getBaseURL(),
   withCredentials: true
 });
 

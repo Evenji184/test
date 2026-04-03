@@ -92,6 +92,24 @@ const PUBLIC_HOST = process.env.PUBLIC_HOST || (HOST === '0.0.0.0' ? 'localhost'
 const shouldAlterSchema = process.env.DB_SYNC_ALTER === 'true';
 const httpsEnabled = process.env.HTTPS_ENABLED === 'true';
 
+const validateRequiredEnv = () => {
+  const requiredEnvKeys = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'JWT_SECRET'];
+  const missingKeys = requiredEnvKeys.filter((key) => !String(process.env[key] || '').trim());
+
+  if (missingKeys.length > 0) {
+    throw new Error(`缺少必要环境变量: ${missingKeys.join(', ')}`);
+  }
+};
+
+const logRuntimeConfig = (protocol) => {
+  console.log('📋 当前运行配置:');
+  console.log(`   - 后端监听地址: ${HOST}:${PORT}`);
+  console.log(`   - 后端对外地址: ${protocol}://${PUBLIC_HOST}:${PORT}`);
+  console.log(`   - 数据库地址: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
+  console.log(`   - CORS 白名单: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : '未配置（当前允许所有来源）'}`);
+  console.log(`   - 文件上传目录: ${process.env.UPLOAD_DIR}`);
+};
+
 const createServer = () => {
   if (!httpsEnabled) {
     return {
@@ -125,6 +143,7 @@ const createServer = () => {
 
 const startServer = async () => {
   try {
+    validateRequiredEnv();
     await sequelize.authenticate();
     await sequelize.sync(shouldAlterSchema ? { alter: true } : undefined);
     await ensureFileTableColumns();
@@ -137,6 +156,7 @@ const startServer = async () => {
     if (protocol === 'https') {
       console.log('🔐 HTTPS 已启用');
     }
+    logRuntimeConfig(protocol);
 
     server.listen(PORT, HOST, () => {
       console.log(`🚀 服务器运行在 ${protocol}://${PUBLIC_HOST}:${PORT}`);

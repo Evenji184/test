@@ -56,16 +56,26 @@ frontend/
 
 ## 接口调用说明
 
-前端默认通过 [`frontend/src/services/api.ts`](frontend/src/services/api.ts) 自动访问当前页面同主机名下的后端地址：
+前端当前支持通过环境变量配置开发地址、代理目标和生产 API 地址。
 
-- `http://当前访问主机:5000/api/auth/*`
-- `http://当前访问主机:5000/api/files/*`
+### 开发环境
 
-默认逻辑会根据浏览器当前地址自动拼接后端 API，例如从 `http://172.21.38.119:3000` 打开前端时，会自动请求 `http://172.21.38.119:5000/api`。
+开发环境默认使用 [`/api`](frontend/src/services/api.ts) 相对路径，并由 [`frontend/vite.config.ts`](frontend/vite.config.ts) 代理到后端，避免浏览器直接跨域访问后端端口。
 
-如需手动指定后端地址，可在前端启动前设置 `VITE_API_BASE_URL`，覆盖 [`api`](frontend/src/services/api.ts:5) 中的默认值。
+可在 [`frontend/.env.development`](frontend/.env.development) 中配置：
 
-前端请求已在 [`frontend/src/services/api.ts`](frontend/src/services/api.ts:5) 中启用 `withCredentials`，以匹配后端的跨域凭证配置，避免局域网访问时登录请求被浏览器拦截。
+- `VITE_DEV_SERVER_HOST`：前端开发服务器监听地址，默认 `0.0.0.0`
+- `VITE_DEV_SERVER_PORT`：前端开发服务器端口，默认 `3000`
+- `VITE_API_PROXY_TARGET`：开发环境 API 代理目标，例如 `http://127.0.0.1:5000`
+- `VITE_API_BASE_URL`：可选；如填写则会覆盖默认代理逻辑
+
+### 生产环境
+
+生产环境下，前端会优先读取 [`VITE_API_BASE_URL`](frontend/.env.production)；如果未配置，则自动回退为 `当前页面协议 + 当前主机名 + :5000/api`。
+
+例如从 `http://172.21.38.119:3000` 打开前端时，默认会回退为 `http://172.21.38.119:5000/api`。
+
+前端请求已在 [`frontend/src/services/api.ts`](frontend/src/services/api.ts) 中启用 `withCredentials`，以匹配后端的跨域凭证配置，避免局域网访问时登录请求被浏览器拦截。
 
 ## 启动方式
 
@@ -83,9 +93,24 @@ npm run dev
 
 默认访问地址：`http://localhost:3000`
 
-Vite 开发服务已在 [`frontend/vite.config.ts`](frontend/vite.config.ts:4) 中配置为监听 `0.0.0.0`，因此可通过局域网 IP 访问，例如 `http://172.21.38.119:3000`。
+Vite 开发服务已在 [`frontend/vite.config.ts`](frontend/vite.config.ts) 中支持通过环境变量配置监听地址与端口，因此可通过局域网 IP 访问，例如 `http://172.21.38.119:3000`。
 
 如后端启用了 HTTPS，前端请求地址也会默认跟随当前页面协议；若前后端地址不一致，可通过 `VITE_API_BASE_URL=https://你的后端地址:5000/api` 显式指定。
+
+推荐的开发环境配置示例：
+
+```env
+VITE_DEV_SERVER_HOST=0.0.0.0
+VITE_DEV_SERVER_PORT=3000
+VITE_API_PROXY_TARGET=http://127.0.0.1:5000
+VITE_API_BASE_URL=
+```
+
+推荐的生产环境配置示例：
+
+```env
+VITE_API_BASE_URL=http://172.21.38.119:5000/api
+```
 
 ### 3. 构建生产版本
 

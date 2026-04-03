@@ -94,25 +94,46 @@ backend/
 
 可在 [`backend/.env`](backend/.env) 中配置：
 
-- `PORT`：服务端口
+### 服务器与访问地址
+
+- `PORT`：后端服务端口，默认 `5000`
 - `HOST`：后端监听地址，默认 `0.0.0.0`，如需仅监听某个局域网 IP 可改为对应地址
-- `PUBLIC_HOST`：启动日志中展示的访问地址，默认 `localhost`；若需显示局域网访问地址，可改为实际 IP
+- `PUBLIC_HOST`：后端对外展示地址，主要用于启动日志输出，默认 `localhost`
+- `CLIENT_URL`：允许访问后端的前端地址白名单，支持多个来源，使用英文逗号分隔，例如 `http://172.21.38.119:3000,http://localhost:3000`
+
+### 数据库连接
+
 - `DB_HOST`：MySQL 主机地址，兼容 IPv4/IPv6，例如 `127.0.0.1`、`localhost`、`::1`，若使用带方括号的 IPv6 字面量如 `[::1]` 也可正常解析；如果 MySQL 与后端部署在同一台机器，本地开发通常应保持为 `127.0.0.1` 或 `localhost`
-- `DB_PORT`：MySQL 端口
+- `DB_PORT`：MySQL 端口，默认 `3306`
 - `DB_FAMILY`：可选，强制地址族，`4` 表示仅 IPv4，`6` 表示仅 IPv6；不配置时自动兼容 IPv4/IPv6
 - `DB_NAME`：MySQL 数据库名
 - `DB_USER`：MySQL 用户名
 - `DB_PASSWORD`：MySQL 密码
-- `DB_SYNC_ALTER`：可选，设为 `true` 时启动阶段使用 [`sequelize.sync({ alter: true })`](backend/src/app.js:80) 自动补齐表结构，适合开发环境修复新增字段
+- `DB_SYNC_ALTER`：可选，设为 `true` 时启动阶段使用 [`sequelize.sync({ alter: true })`](backend/src/app.js:149) 自动补齐表结构，适合开发环境修复新增字段
+
+### 认证与默认管理员
+
 - `JWT_SECRET`：JWT 密钥
 - `JWT_EXPIRE`：JWT 过期时间
 - `DEFAULT_ADMIN_PASSWORD`：默认管理员 `evenji` 的初始密码
 - `DEFAULT_ADMIN_EMAIL`：默认管理员 `evenji` 的邮箱
+
+### 文件与 HTTPS
+
 - `UPLOAD_DIR`：上传目录
-- `CLIENT_URL`：前端地址，支持多个来源，使用英文逗号分隔，例如 `http://172.21.38.119:3000,http://localhost:3000`
 - `HTTPS_ENABLED`：可选，设为 `true` 时以后端 HTTPS 模式启动
 - `HTTPS_KEY_PATH`：HTTPS 私钥文件路径，默认 `./certs/localhost-key.pem`
 - `HTTPS_CERT_PATH`：HTTPS 证书文件路径，默认 `./certs/localhost-cert.pem`
+
+### 启动自检
+
+当前版本在 [`backend/src/app.js`](backend/src/app.js) 启动时会自动执行配置自检：
+
+- 校验 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`、`JWT_SECRET` 是否已配置
+- 校验 MySQL 是否可连接
+- 输出当前后端监听地址、对外访问地址、数据库地址、CORS 白名单与上传目录
+
+如果关键环境变量缺失，服务会在启动阶段直接报错退出，避免以错误配置继续运行。
 
 ## 启动方式
 
@@ -133,19 +154,19 @@ npm install
 ```env
 PORT=5000
 HOST=0.0.0.0
-PUBLIC_HOST=localhost
+PUBLIC_HOST=172.21.38.119
 DB_HOST=localhost
 DB_PORT=3306
 DB_FAMILY=
-DB_NAME=file_share
-DB_USER=root
-DB_PASSWORD=123456
+DB_NAME=file_share_db
+DB_USER=even
+DB_PASSWORD=even
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRE=7d
-DEFAULT_ADMIN_PASSWORD=admin123
+DEFAULT_ADMIN_PASSWORD=admin123456
 DEFAULT_ADMIN_EMAIL=evenji@example.com
 UPLOAD_DIR=uploads/
-CLIENT_URL=http://localhost:5173
+CLIENT_URL=http://172.21.38.119:3000,http://localhost:3000,http://127.0.0.1:3000
 ```
 
 ### 2.1 默认管理员账号
