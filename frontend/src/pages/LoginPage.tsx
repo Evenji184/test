@@ -18,7 +18,7 @@ export function LoginPage() {
 
       localStorage.setItem('token', result.data.token);
       setMessage('登录成功');
-      window.location.href = result.data.user.role === 'admin' ? '/users' : '/';
+      window.location.href = '/';
     } catch (error: any) {
       setMessage(error.response?.data?.error || '登录失败');
     } finally {

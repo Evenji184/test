@@ -6,6 +6,7 @@ const path = require('path');
 require('dotenv').config();
 const sequelize = require('./config/database.config');
 const { initDefaultAdmin } = require('./config/init-admin');
+const { ensureFileTableColumns } = require('./config/migration');
 const User = require('./models/user.model');
 const File = require('./models/file.model');
 
@@ -72,13 +73,18 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
+const shouldAlterSchema = process.env.DB_SYNC_ALTER === 'true';
 
 const startServer = async () => {
   try {
     await sequelize.authenticate();
-    await sequelize.sync();
+    await sequelize.sync(shouldAlterSchema ? { alter: true } : undefined);
+    await ensureFileTableColumns();
     await initDefaultAdmin();
     console.log('✅ MySQL 数据库连接成功');
+    if (shouldAlterSchema) {
+      console.log('⚠️ 已启用数据库表结构自动同步（alter）');
+    }
 
     app.listen(PORT, () => {
       console.log(`🚀 服务器运行在端口 ${PORT}`);

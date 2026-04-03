@@ -101,6 +101,7 @@ backend/
 - `DB_NAME`：MySQL 数据库名
 - `DB_USER`：MySQL 用户名
 - `DB_PASSWORD`：MySQL 密码
+- `DB_SYNC_ALTER`：可选，设为 `true` 时启动阶段使用 [`sequelize.sync({ alter: true })`](backend/src/app.js:80) 自动补齐表结构，适合开发环境修复新增字段
 - `JWT_SECRET`：JWT 密钥
 - `JWT_EXPIRE`：JWT 过期时间
 - `DEFAULT_ADMIN_PASSWORD`：默认管理员 `evenji` 的初始密码
@@ -170,6 +171,20 @@ CLIENT_URL=http://localhost:5173
 - `DB_FAMILY=4`：仅使用 IPv4
 - `DB_FAMILY=6`：仅使用 IPv6
 
+### 2.3 表结构同步说明
+
+当升级版本后新增了模型字段（例如 [`spaceType`](backend/src/models/file.model.js:56)）而数据库中的旧表尚未更新时，MySQL 可能报错：`Unknown column 'File.spaceType' in 'field list'`。
+
+当前版本启动时会自动执行 [`backend/src/config/migration.js`](backend/src/config/migration.js) 中的兜底迁移逻辑，检测 [`files`](backend/src/models/file.model.js:85) 表是否缺少 `spaceType`、`isPublic` 等关键字段；如果缺失，会自动补齐，无需手工改表。
+
+开发环境如需让 Sequelize 继续自动对齐更多模型变更，可临时在 [`backend/.env`](backend/.env) 中加入：
+
+```env
+DB_SYNC_ALTER=true
+```
+
+服务启动时会先执行 [`sequelize.sync({ alter: true })`](backend/src/app.js:81)，随后再运行自动字段补齐逻辑。字段补齐完成后，建议将该配置移除或改回空值，避免后续启动时持续自动改表。
+
 ### 3. 启动开发服务
 
 ```bash
@@ -185,7 +200,7 @@ npm start
 ## 说明
 
 - 上传文件默认保存在 `uploads/` 目录
-- 上传仅允许 `jpg`、`jpeg`、`png`、`gif`、`webp`、`pdf`、`txt`、`doc`、`docx` 类型
+- 上传允许任意文件类型，单文件大小仍限制为 10MB，服务端会保留原始扩展名生成安全文件名
 - 单文件大小限制为 10MB，服务端会为文件生成随机安全文件名
 - 文件支持上传到“公共空间”或“个人空间”，普通用户只能查看自己的个人空间文件，管理员可查看所有人的个人空间文件
 - 文件列表支持按文件名、存储名或 MIME 类型进行模糊搜索

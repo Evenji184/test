@@ -111,6 +111,7 @@ export function DashboardPage() {
   };
 
   useEffect(() => {
+    setShowPasswordModal(false);
     loadProfile();
   }, []);
 
