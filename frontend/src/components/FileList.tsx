@@ -102,10 +102,8 @@ export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: 
         chunks: []
       });
 
-      const probeResult = await fileService.downloadFileChunk(id, fileName, {
+      const probeResult = await fileService.downloadFile(id, fileName, {
         signal: controller.signal,
-        startByte: 0,
-        endByte: DOWNLOAD_CHUNK_SIZE - 1,
         onProgress: ({ progress, loadedBytes, totalBytes: progressTotalBytes }) => {
           const task = downloadTasksRef.current[id];
           if (task?.controller !== controller || task.status !== 'downloading') {
@@ -123,8 +121,8 @@ export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: 
         }
       });
 
-      totalBytes = probeResult.totalBytes;
-      chunks = new Array<Blob | null>(Math.ceil(totalBytes / DOWNLOAD_CHUNK_SIZE)).fill(null);
+      totalBytes = probeResult.blob.size;
+      chunks = new Array<Blob | null>(Math.max(1, Math.ceil(totalBytes / DOWNLOAD_CHUNK_SIZE))).fill(null);
       chunks[0] = probeResult.blob;
     }
 

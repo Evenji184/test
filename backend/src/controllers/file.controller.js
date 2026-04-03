@@ -109,6 +109,16 @@ const initUpload = async (req, res, next) => {
     const normalizedSpaceType = spaceType === 'public' ? 'public' : 'personal';
     const uploadId = crypto.randomUUID();
 
+    console.log('[Upload] 初始化上传请求', {
+      userId: req.userId,
+      originalName,
+      mimetype,
+      size: Number(size),
+      totalChunks: Number(totalChunks),
+      chunkSize: Number(chunkSize) || null,
+      spaceType: normalizedSpaceType
+    });
+
     const file = await File.create({
       filename: `${Date.now()}-${uploadId}${path.extname(path.basename(originalName)).toLowerCase()}`,
       originalName,
@@ -225,8 +235,20 @@ const mergeChunks = async (req, res, next) => {
       writeStream.on('error', reject);
     });
 
+    const actualSize = fs.statSync(file.path).size;
+    console.log('[Merge] 文件合并完成', {
+      fileId: file.id,
+      uploadId,
+      originalName: file.originalName,
+      databaseSize: file.size,
+      actualSize,
+      totalChunks: file.totalChunks,
+      uploadedChunks: uploadedChunks.length
+    });
+
     await file.update({
-      uploadStatus: 'completed'
+      uploadStatus: 'completed',
+      size: actualSize
     });
 
     removeChunkDir(uploadId);
@@ -347,6 +369,14 @@ const downloadFile = async (req, res, next) => {
     const stat = fs.statSync(filePath);
     const range = req.headers.range;
 
+    console.log('[Download] 下载请求', {
+      fileId: file.id,
+      originalName: file.originalName,
+      databaseSize: file.size,
+      actualSize: stat.size,
+      rangeHeader: range || null
+    });
+
     file.downloads += 1;
     await file.save();
 
@@ -369,6 +399,15 @@ const downloadFile = async (req, res, next) => {
     const end = matches[2] ? Number(matches[2]) : stat.size - 1;
 
     if (start >= stat.size || end >= stat.size || start > end) {
+      console.error('[Download] Range 超出文件范围', {
+        fileId: file.id,
+        originalName: file.originalName,
+        databaseSize: file.size,
+        actualSize: stat.size,
+        requestedStart: start,
+        requestedEnd: end,
+        rangeHeader: range
+      });
       return res.status(416).json({ success: false, error: 'Range 超出文件范围' });
     }
 
