@@ -61,8 +61,10 @@ backend/
 ### 2. 文件管理
 
 - 多文件上传
+- 大文件分片上传与断点续传
 - 文件列表查询
 - 文件下载
+- 支持 Range 的断点下载
 - 文件删除
 - 个人空间与公共空间隔离
 - 文件列表关键字模糊搜索
@@ -86,8 +88,12 @@ backend/
 ### 文件接口
 
 - `GET /api/files`：获取文件列表，支持 `space=public|personal` 与 `keyword=关键字`
+- `POST /api/files/upload/init`：初始化分片上传任务
+- `POST /api/files/upload/chunk`：上传单个分片
+- `POST /api/files/upload/merge`：合并分片并完成上传
+- `DELETE /api/files/upload/:uploadId`：终止未完成上传并清理临时分片
 - `POST /api/files/upload`：上传文件，支持 `spaceType=public|personal`
-- `GET /api/files/:id/download`：下载文件
+- `GET /api/files/:id/download`：下载文件，支持 HTTP Range 断点续传
 - `DELETE /api/files/:id`：删除文件
 
 ## 环境变量说明
@@ -121,6 +127,7 @@ backend/
 ### 文件与 HTTPS
 
 - `UPLOAD_DIR`：上传目录
+- `UPLOAD_DIR/.chunks`：分片上传临时目录，合并完成后自动清理
 - `HTTPS_ENABLED`：可选，设为 `true` 时以后端 HTTPS 模式启动
 - `HTTPS_KEY_PATH`：HTTPS 私钥文件路径，默认 `./certs/localhost-key.pem`
 - `HTTPS_CERT_PATH`：HTTPS 证书文件路径，默认 `./certs/localhost-cert.pem`
@@ -132,6 +139,17 @@ backend/
 - 校验 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`、`JWT_SECRET` 是否已配置
 - 校验 MySQL 是否可连接
 - 输出当前后端监听地址、对外访问地址、数据库地址、CORS 白名单与上传目录
+
+## 断点续传说明
+
+- 前端默认按 `1MB` 分片上传文件
+- 后端通过 [`uploadId`](backend/src/models/file.model.js:81) 与 [`uploadedChunks`](backend/src/models/file.model.js:89) 记录上传进度
+- 分片临时文件保存在 [`UPLOAD_DIR/.chunks`](backend/src/controllers/file.controller.js:9) 对应目录下
+- 合并完成后，文件状态会更新为 `completed`
+- 前端上传任务在创建后会自动开始，支持“暂停 / 继续 / 终止”，终止时会调用 [`DELETE /api/files/upload/:uploadId`](backend/src/routes/file.routes.js) 清理未完成任务并刷新页面
+- 前端已为 [`axios`](frontend/src/services/api.ts) 与 [`uploadChunk()`](frontend/src/services/fileService.ts) 配置请求超时，避免网络异常时上传任务长期卡在 `0%`
+- 下载接口支持客户端通过 `Range` 请求继续下载未完成内容
+- 前端下载任务在点击下载后自动开始，支持“暂停 / 继续 / 终止”，暂停基于浏览器 [`AbortController`](frontend/src/services/fileService.ts) 中断当前请求，终止后会自动刷新页面
 
 如果关键环境变量缺失，服务会在启动阶段直接报错退出，避免以错误配置继续运行。
 
@@ -260,6 +278,12 @@ CLIENT_URL=http://172.21.38.119:3000
 ```bash
 npm start
 ```
+
+## 构建与自检
+
+- 前端可通过 [`npm run build`](frontend/package.json) 执行生产构建
+- 后端当前未提供 [`build`](backend/package.json) 脚本，Node.js 服务可通过 [`npm run dev`](backend/package.json) 或 [`npm start`](backend/package.json) 直接运行
+- 本次自检中，前端 [`vite build`](frontend/package.json) 已通过；后端执行 [`npm run build`](backend/package.json) 会提示脚本不存在，属于当前项目脚本设计而非运行错误
 
 ## 说明
 

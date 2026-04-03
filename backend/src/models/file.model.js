@@ -77,6 +77,26 @@ File.init(
     tags: {
       type: DataTypes.JSON,
       defaultValue: []
+    },
+    uploadId: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    totalChunks: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    uploadedChunks: {
+      type: DataTypes.JSON,
+      defaultValue: []
+    },
+    uploadStatus: {
+      type: DataTypes.ENUM('uploading', 'completed', 'failed'),
+      defaultValue: 'completed'
+    },
+    chunkSize: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   },
   {
