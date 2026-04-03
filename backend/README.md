@@ -149,6 +149,8 @@ npm install
 
 请确保本地 MySQL 已启动，并提前创建好数据库，且连接信息与 [`backend/.env`](backend/.env) 中的 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD` 一致。
 
+创建数据库CREATE DATABASE file_share_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 可参考以下配置：
 
 ```env
@@ -159,8 +161,8 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_FAMILY=
 DB_NAME=file_share_db
-DB_USER=even
-DB_PASSWORD=even
+DB_USER=evenji
+DB_PASSWORD=evenji
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRE=7d
 DEFAULT_ADMIN_PASSWORD=admin123456
