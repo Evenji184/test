@@ -56,12 +56,16 @@ frontend/
 
 ## 接口调用说明
 
-前端默认通过 [`frontend/src/services/api.ts`](frontend/src/services/api.ts) 访问：
+前端默认通过 [`frontend/src/services/api.ts`](frontend/src/services/api.ts) 自动访问当前页面同主机名下的后端地址：
 
-- `http://localhost:5000/api/auth/*`
-- `http://localhost:5000/api/files/*`
+- `http://当前访问主机:5000/api/auth/*`
+- `http://当前访问主机:5000/api/files/*`
 
-如需修改后端地址，可调整 [`api`](frontend/src/services/api.ts:3) 中的 `baseURL`。
+默认逻辑会根据浏览器当前地址自动拼接后端 API，例如从 `http://172.21.38.119:3000` 打开前端时，会自动请求 `http://172.21.38.119:5000/api`。
+
+如需手动指定后端地址，可在前端启动前设置 `VITE_API_BASE_URL`，覆盖 [`api`](frontend/src/services/api.ts:5) 中的默认值。
+
+前端请求已在 [`frontend/src/services/api.ts`](frontend/src/services/api.ts:5) 中启用 `withCredentials`，以匹配后端的跨域凭证配置，避免局域网访问时登录请求被浏览器拦截。
 
 ## 启动方式
 
@@ -79,6 +83,10 @@ npm run dev
 
 默认访问地址：`http://localhost:3000`
 
+Vite 开发服务已在 [`frontend/vite.config.ts`](frontend/vite.config.ts:4) 中配置为监听 `0.0.0.0`，因此可通过局域网 IP 访问，例如 `http://172.21.38.119:3000`。
+
+如后端启用了 HTTPS，前端请求地址也会默认跟随当前页面协议；若前后端地址不一致，可通过 `VITE_API_BASE_URL=https://你的后端地址:5000/api` 显式指定。
+
 ### 3. 构建生产版本
 
 ```bash
@@ -89,4 +97,6 @@ npm run build
 
 - 登录成功后，token 会保存在浏览器 `localStorage`
 - 上传、删除、获取文件列表等请求会自动携带 token
+- 当前样式已补充移动端适配，重点优化了首页卡片、文件列表、弹窗操作区和账号管理表格在手机上的显示效果
+- 账号管理页在窄屏下会保留横向滚动，避免表格内容被压缩错位
 - 当前界面为基础功能版本，后续可继续扩展注册页、文件搜索、分页、分享链接等能力

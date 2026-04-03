@@ -134,14 +134,14 @@ export function DashboardPage() {
             </p>
           )}
           {user?.role === 'admin' && (
-            <p>
+            <p className="admin-actions">
               <button type="button" className="link-button" onClick={() => navigate('/register')}>注册账号</button>
               <button type="button" className="link-button" onClick={() => navigate('/users')}>账号管理</button>
             </p>
           )}
         </div>
         {user && (
-          <button type="button" onClick={handleLogout}>
+          <button type="button" className="logout-button" onClick={handleLogout}>
             退出登录
           </button>
         )}

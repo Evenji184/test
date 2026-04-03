@@ -1,10 +1,15 @@
 const User = require('../models/user.model');
+const { Op } = require('sequelize');
 
 const initDefaultAdmin = async () => {
-  const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+  const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123456';
   const defaultEmail = process.env.DEFAULT_ADMIN_EMAIL || 'evenji@example.com';
 
-  const existingUser = await User.findOne({ where: { username: 'evenji' } });
+  const existingUser = await User.scope('withPassword').findOne({
+    where: {
+      [Op.or]: [{ username: 'evenji' }, { email: defaultEmail }]
+    }
+  });
 
   if (!existingUser) {
     await User.create({
@@ -17,10 +22,27 @@ const initDefaultAdmin = async () => {
     return;
   }
 
+  let shouldSave = false;
+
+  if (existingUser.email !== defaultEmail) {
+    existingUser.email = defaultEmail;
+    shouldSave = true;
+  }
+
+  const passwordMatchesDefault = await existingUser.comparePassword(defaultPassword);
+  if (!passwordMatchesDefault) {
+    existingUser.password = defaultPassword;
+    shouldSave = true;
+  }
+
   if (existingUser.role !== 'admin') {
     existingUser.role = 'admin';
+    shouldSave = true;
+  }
+
+  if (shouldSave) {
     await existingUser.save();
-    console.log('✅ 已将 evenji 账号提升为管理员');
+    console.log('✅ 已同步默认管理员账号信息');
   }
 };
 

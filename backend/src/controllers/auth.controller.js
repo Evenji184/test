@@ -3,6 +3,9 @@ const { Op } = require('sequelize');
 const { validationResult } = require('express-validator');
 const User = require('../models/user.model');
 
+const normalizeEmail = (email) => email?.trim().toLowerCase();
+const normalizeUsername = (username) => username?.trim();
+
 const generateToken = (userId, role) => {
   return jwt.sign({ userId, role }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '7d'
@@ -19,7 +22,9 @@ const register = async (req, res, next) => {
       });
     }
 
-    const { username, email, password } = req.body;
+    const username = normalizeUsername(req.body.username);
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
 
     const existingUsers = await User.findAll({
       where: {
@@ -69,7 +74,8 @@ const login = async (req, res, next) => {
       });
     }
 
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
 
     const user = await User.scope('withPassword').findOne({ where: { email } });
     if (!user) {

@@ -95,7 +95,9 @@ backend/
 可在 [`backend/.env`](backend/.env) 中配置：
 
 - `PORT`：服务端口
-- `DB_HOST`：MySQL 主机地址，兼容 IPv4/IPv6，例如 `127.0.0.1`、`localhost`、`::1`，若使用带方括号的 IPv6 字面量如 `[::1]` 也可正常解析
+- `HOST`：后端监听地址，默认 `0.0.0.0`，如需仅监听某个局域网 IP 可改为对应地址
+- `PUBLIC_HOST`：启动日志中展示的访问地址，默认 `localhost`；若需显示局域网访问地址，可改为实际 IP
+- `DB_HOST`：MySQL 主机地址，兼容 IPv4/IPv6，例如 `127.0.0.1`、`localhost`、`::1`，若使用带方括号的 IPv6 字面量如 `[::1]` 也可正常解析；如果 MySQL 与后端部署在同一台机器，本地开发通常应保持为 `127.0.0.1` 或 `localhost`
 - `DB_PORT`：MySQL 端口
 - `DB_FAMILY`：可选，强制地址族，`4` 表示仅 IPv4，`6` 表示仅 IPv6；不配置时自动兼容 IPv4/IPv6
 - `DB_NAME`：MySQL 数据库名
@@ -107,7 +109,10 @@ backend/
 - `DEFAULT_ADMIN_PASSWORD`：默认管理员 `evenji` 的初始密码
 - `DEFAULT_ADMIN_EMAIL`：默认管理员 `evenji` 的邮箱
 - `UPLOAD_DIR`：上传目录
-- `CLIENT_URL`：前端地址
+- `CLIENT_URL`：前端地址，支持多个来源，使用英文逗号分隔，例如 `http://172.21.38.119:3000,http://localhost:3000`
+- `HTTPS_ENABLED`：可选，设为 `true` 时以后端 HTTPS 模式启动
+- `HTTPS_KEY_PATH`：HTTPS 私钥文件路径，默认 `./certs/localhost-key.pem`
+- `HTTPS_CERT_PATH`：HTTPS 证书文件路径，默认 `./certs/localhost-cert.pem`
 
 ## 启动方式
 
@@ -127,6 +132,8 @@ npm install
 
 ```env
 PORT=5000
+HOST=0.0.0.0
+PUBLIC_HOST=localhost
 DB_HOST=localhost
 DB_PORT=3306
 DB_FAMILY=
@@ -191,6 +198,40 @@ DB_SYNC_ALTER=true
 npm run dev
 ```
 
+### 3.1 HTTPS 启动说明
+
+默认情况下，后端以 HTTP 模式启动，适合本地开发。如需直接由 Express 提供 HTTPS，可在 [`backend/.env`](backend/.env) 中配置：
+
+```env
+HTTPS_ENABLED=true
+HTTPS_KEY_PATH=./certs/localhost-key.pem
+HTTPS_CERT_PATH=./certs/localhost-cert.pem
+```
+
+开发环境可先创建 [`backend/certs`](backend/certs) 目录，再生成自签名证书：
+
+```bash
+mkdir certs
+openssl req -x509 -newkey rsa:4096 -keyout certs/localhost-key.pem -out certs/localhost-cert.pem -days 365 -nodes -subj "/CN=localhost"
+```
+
+服务启动时会在 [`backend/src/app.js`](backend/src/app.js:82) 中按配置创建 HTTPS Server；若证书文件不存在，会输出警告并自动降级为 HTTP 模式，不会阻塞普通开发启动。开发环境建议使用自签名证书，生产环境更推荐由 Nginx、Caddy 等反向代理终止 HTTPS。
+
+### 3.2 局域网访问说明
+
+如果需要让同一局域网内的其他设备访问后端，可在 [`backend/.env`](backend/.env) 中配置：
+
+```env
+HOST=0.0.0.0
+PUBLIC_HOST=172.21.38.119
+CLIENT_URL=http://172.21.38.119:3000
+```
+
+- [`HOST`](backend/.env) 控制服务实际监听的网卡地址，通常保留 `0.0.0.0` 即可监听所有网卡
+- [`PUBLIC_HOST`](backend/.env) 控制启动日志中显示的访问地址
+- [`CLIENT_URL`](backend/.env) 需要与前端实际访问地址保持一致，避免 CORS 拦截
+- [`DB_HOST`](backend/.env) 是 MySQL 地址，不等于前端或后端的局域网访问地址；如果数据库仍运行在当前机器本地，不应改成局域网 IP
+
 ### 4. 生产模式启动
 
 ```bash
@@ -211,3 +252,4 @@ npm start
 - 前端在检测到未登录或令牌失效时会自动跳转到 [`/login`](frontend/src/pages/LoginPage.tsx:5)
 - 当前版本使用本地存储，后续可扩展为云存储
 - 若 MySQL 未启动或连接信息错误，服务会在数据库连接阶段报错
+- 当 `HTTPS_ENABLED=true` 时，后端访问地址会切换为 `https://localhost:端口`

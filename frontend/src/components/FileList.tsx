@@ -48,21 +48,20 @@ export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: 
       {message && <p className={message === '删除成功' ? 'status-message success-text' : 'status-message error-text'}>{message}</p>}
       <ul className="file-list">
         {files.map((file) => (
-          <li key={file.id}>
-            <span>
-              {file.originalName}
-              {' '}
+          <li key={file.id} className="file-list-item">
+            <div className="file-list-meta">
+              <span className="file-name" title={file.originalName}>{file.originalName}</span>
               <small>[{file.spaceType === 'personal' ? '个人空间' : '公共空间'}]</small>
               {file.uploadedBy && typeof file.uploadedBy === 'object' && (
                 <small> 上传者：{file.uploadedBy.username}</small>
               )}
-            </span>
-            <div>
+            </div>
+            <div className="file-actions">
               <button type="button" onClick={() => handleDownload(String(file.id), file.originalName)}>
                 下载
               </button>
               {(isAdmin || getUploaderId(file.uploadedBy) === currentUserId) && (
-                <button onClick={() => handleDelete(String(file.id))}>删除</button>
+                <button type="button" onClick={() => handleDelete(String(file.id))}>删除</button>
               )}
             </div>
           </li>
