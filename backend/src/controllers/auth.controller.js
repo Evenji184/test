@@ -77,13 +77,17 @@ const login = async (req, res, next) => {
     const email = normalizeEmail(req.body.email);
     const { password } = req.body;
 
+    console.log('[Auth] 登录请求', { email });
+
     const user = await User.scope('withPassword').findOne({ where: { email } });
     if (!user) {
+      console.warn('[Auth] 登录失败 - 用户不存在或邮箱错误', { email });
       return res.status(401).json({ success: false, error: '邮箱或密码错误' });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      console.warn('[Auth] 登录失败 - 密码错误', { email, userId: user.id });
       return res.status(401).json({ success: false, error: '邮箱或密码错误' });
     }
 
@@ -91,6 +95,13 @@ const login = async (req, res, next) => {
     await user.save();
 
     const token = generateToken(user.id, user.role);
+
+    console.log('[Auth] 登录成功', {
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    });
 
     res.json({
       success: true,

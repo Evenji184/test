@@ -263,12 +263,21 @@ const cancelUpload = async (req, res, next) => {
   try {
     const { uploadId } = req.params;
 
+    console.log('[Upload] 终止上传请求', {
+      uploadId,
+      userId: req.userId
+    });
+
     if (!uploadId) {
       return res.status(400).json({ success: false, error: '缺少 uploadId' });
     }
 
     const file = await File.findOne({ where: { uploadId, uploadedBy: req.userId } });
     if (!file) {
+      console.warn('[Upload] 终止上传失败 - 上传任务不存在', {
+        uploadId,
+        userId: req.userId
+      });
       return res.status(404).json({ success: false, error: '上传任务不存在' });
     }
 
@@ -279,6 +288,13 @@ const cancelUpload = async (req, res, next) => {
     }
 
     await file.destroy();
+
+    console.log('[Upload] 上传任务已终止', {
+      uploadId,
+      fileId: file.id,
+      originalName: file.originalName,
+      userId: req.userId
+    });
 
     res.json({ success: true, message: '上传任务已终止' });
   } catch (error) {

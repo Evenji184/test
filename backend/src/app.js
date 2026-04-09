@@ -13,6 +13,35 @@ const { ensureFileTableColumns } = require('./config/migration');
 const User = require('./models/user.model');
 const File = require('./models/file.model');
 
+const originalConsole = {
+  log: console.log.bind(console),
+  info: console.info.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+  debug: console.debug.bind(console)
+};
+
+const formatTimestamp = () => new Date().toLocaleString('zh-CN', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+});
+
+const withTimestamp = (method) => (...args) => {
+  originalConsole[method](`[${formatTimestamp()}]`, ...args);
+};
+
+console.log = withTimestamp('log');
+console.info = withTimestamp('info');
+console.warn = withTimestamp('warn');
+console.error = withTimestamp('error');
+console.debug = withTimestamp('debug');
+
 // 导入路由
 const authRoutes = require('./routes/auth.routes');
 const fileRoutes = require('./routes/file.routes');
@@ -61,7 +90,8 @@ app.use(cors({
   credentials: true,
   exposedHeaders: ['Content-Disposition']
 }));
-app.use(morgan('dev'));
+morgan.token('timestamp', () => formatTimestamp());
+app.use(morgan('[:timestamp] :method :url :status :res[content-length] - :response-time ms'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
