@@ -11,6 +11,22 @@ const ensureColumn = async (tableName, columnName, definition) => {
   return true;
 };
 
+const ensureColumnType = async (tableName, columnName, expectedType, definition) => {
+  const [columns] = await sequelize.query(`SHOW COLUMNS FROM \`${tableName}\` LIKE ${sequelize.escape(columnName)}`);
+
+  if (!Array.isArray(columns) || columns.length === 0) {
+    return false;
+  }
+
+  const currentType = String(columns[0].Type || '').toLowerCase();
+  if (currentType.includes(expectedType.toLowerCase())) {
+    return false;
+  }
+
+  await sequelize.query(`ALTER TABLE \`${tableName}\` MODIFY COLUMN \`${columnName}\` ${definition}`);
+  return true;
+};
+
 const ensureFileTableColumns = async () => {
   const queryInterface = sequelize.getQueryInterface();
   const tableExists = await queryInterface
@@ -52,8 +68,18 @@ const ensureFileTableColumns = async () => {
     addedColumns.push('chunkSize');
   }
 
+  const updatedColumns = [];
+
+  if (await ensureColumnType('files', 'size', 'bigint', 'BIGINT NOT NULL')) {
+    updatedColumns.push('size');
+  }
+
   if (addedColumns.length > 0) {
     console.log(`⚠️ 已自动补齐 files 表缺失字段: ${addedColumns.join(', ')}`);
+  }
+
+  if (updatedColumns.length > 0) {
+    console.log(`⚠️ 已自动修正 files 表字段类型: ${updatedColumns.join(', ')}`);
   }
 };
 

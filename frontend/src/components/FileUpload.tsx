@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { fileService } from '../services/fileService';
 
-const CHUNK_SIZE = 1024 * 1024;
+const CHUNK_SIZE = 2 * 1024 * 1024;
+const MAX_CONCURRENT_CHUNKS = 3;
 
 interface UploadTask {
   key: string;
@@ -13,6 +14,10 @@ interface UploadTask {
   currentChunkIndex: number;
   totalChunks: number;
 }
+
+const getTaskControllerKey = (taskKey: string, chunkIndex: number) => `${taskKey}-${chunkIndex}`;
+
+const isAbortError = (error: any) => error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError';
 
 export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
   const [files, setFiles] = useState<FileList | null>(null);
@@ -60,6 +65,17 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
 
   const syncUploadingState = (nextTasks: UploadTask[]) => {
     setUploading(nextTasks.some((task) => task.status === 'uploading'));
+  };
+
+  const abortTaskControllers = (taskKey: string) => {
+    Object.keys(controllersRef.current).forEach((key) => {
+      if (!key.startsWith(`${taskKey}-`)) {
+        return;
+      }
+
+      controllersRef.current[key]?.abort();
+      delete controllersRef.current[key];
+    });
   };
 
   const uploadTask = async (taskKey: string) => {
@@ -120,42 +136,50 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
         taskKey,
         uploadId: activeTask.uploadId,
         currentChunkIndex: activeTask.currentChunkIndex,
-        totalChunks: activeTask.totalChunks
+        totalChunks: activeTask.totalChunks,
+        maxConcurrentChunks: MAX_CONCURRENT_CHUNKS
       });
 
-      for (let chunkIndex = activeTask.currentChunkIndex; chunkIndex < activeTask.totalChunks; chunkIndex += 1) {
-        const latestTask = tasksRef.current.find((item) => item.key === taskKey);
-        const latestStatus = latestTask?.status ?? activeTask.status;
-
-        console.log('[FileUpload] chunk loop check', {
+      if (!activeTask.uploadId) {
+        console.error('[FileUpload] missing uploadId before chunk upload', {
           taskKey,
-          chunkIndex,
-          latestTask,
-          activeTaskUploadId: activeTask.uploadId,
-          latestStatus
+          activeTask
         });
+        return;
+      }
 
-        if (latestStatus !== 'uploading') {
-          console.warn('[FileUpload] chunk loop stopped by status', {
-            taskKey,
-            chunkIndex,
-            latestStatus
-          });
-          return;
-        }
+      const uploadId = activeTask.uploadId;
+      const uploadedChunkSet = new Set<number>();
+      for (let index = 0; index < activeTask.currentChunkIndex; index += 1) {
+        uploadedChunkSet.add(index);
+      }
 
-        if (!activeTask.uploadId) {
-          console.error('[FileUpload] missing uploadId before chunk upload', {
-            taskKey,
-            chunkIndex,
-            activeTask,
-            latestTask
-          });
-          return;
-        }
+      const inFlightProgress = new Map<number, number>();
+      const inFlightUploads = new Map<number, Promise<void>>();
+      let nextChunkIndex = activeTask.currentChunkIndex;
 
+      const syncTaskProgress = () => {
+        const uploadedCount = uploadedChunkSet.size;
+        const inFlightWeight = Array.from(inFlightProgress.values()).reduce((sum, progress) => sum + progress / 100, 0);
+        const progress = Math.min(99, Math.round(((uploadedCount + inFlightWeight) / activeTask.totalChunks) * 100));
+        const contiguousUploadedCount = (() => {
+          let count = 0;
+          while (uploadedChunkSet.has(count)) {
+            count += 1;
+          }
+          return count;
+        })();
+
+        updateTask(taskKey, {
+          progress,
+          currentChunkIndex: contiguousUploadedCount
+        });
+      };
+
+      const startChunkUpload = (chunkIndex: number) => {
         const controller = new AbortController();
-        controllersRef.current[taskKey] = controller;
+        const controllerKey = getTaskControllerKey(taskKey, chunkIndex);
+        controllersRef.current[controllerKey] = controller;
 
         const start = chunkIndex * CHUNK_SIZE;
         const end = Math.min(activeTask.file.size, start + CHUNK_SIZE);
@@ -163,31 +187,68 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
 
         console.log('[FileUpload] upload chunk request', {
           taskKey,
-          uploadId: activeTask.uploadId,
+          uploadId,
           chunkIndex,
           start,
           end,
           chunkSize: chunk.size
         });
 
-        await fileService.uploadChunk(activeTask.uploadId, chunkIndex, chunk, (chunkProgress) => {
-          const completed = chunkIndex / activeTask.totalChunks;
-          const currentChunkWeight = (chunkProgress / 100) * (1 / activeTask.totalChunks);
-          updateTask(taskKey, {
-            progress: Math.min(99, Math.round((completed + currentChunkWeight) * 100)),
-            currentChunkIndex: chunkIndex
+        const uploadPromise = fileService.uploadChunk(
+          uploadId,
+          chunkIndex,
+          chunk,
+          (chunkProgress) => {
+            inFlightProgress.set(chunkIndex, chunkProgress);
+            syncTaskProgress();
+          },
+          controller.signal
+        )
+          .then(() => {
+            uploadedChunkSet.add(chunkIndex);
+            inFlightProgress.delete(chunkIndex);
+            inFlightUploads.delete(chunkIndex);
+            delete controllersRef.current[controllerKey];
+            syncTaskProgress();
+          })
+          .catch((error) => {
+            inFlightProgress.delete(chunkIndex);
+            inFlightUploads.delete(chunkIndex);
+            delete controllersRef.current[controllerKey];
+
+            if (isAbortError(error)) {
+              syncTaskProgress();
+              return;
+            }
+
+            throw error;
           });
-        }, controller.signal);
 
-        updateTask(taskKey, {
-          progress: Math.round(((chunkIndex + 1) / activeTask.totalChunks) * 100),
-          currentChunkIndex: chunkIndex + 1
-        });
+        inFlightUploads.set(chunkIndex, uploadPromise);
+      };
 
-        activeTask = {
-          ...activeTask,
-          currentChunkIndex: chunkIndex + 1
-        };
+      while (nextChunkIndex < activeTask.totalChunks || inFlightUploads.size > 0) {
+        const latestTask = tasksRef.current.find((item) => item.key === taskKey);
+        const latestStatus = latestTask?.status ?? activeTask.status;
+
+        if (latestStatus !== 'uploading') {
+          console.warn('[FileUpload] chunk loop stopped by status', {
+            taskKey,
+            nextChunkIndex,
+            latestStatus
+          });
+          await Promise.allSettled(Array.from(inFlightUploads.values()));
+          return;
+        }
+
+        while (nextChunkIndex < activeTask.totalChunks && inFlightUploads.size < MAX_CONCURRENT_CHUNKS) {
+          startChunkUpload(nextChunkIndex);
+          nextChunkIndex += 1;
+        }
+
+        if (inFlightUploads.size > 0) {
+          await Promise.race(Array.from(inFlightUploads.values()));
+        }
       }
 
       const completedTask = tasksRef.current.find((item) => item.key === taskKey);
@@ -196,7 +257,6 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
       }
 
       await fileService.mergeChunks(completedTask.uploadId);
-      controllersRef.current[taskKey] = null;
       updateTask(taskKey, { status: 'success', progress: 100 });
       const nextUploading = tasksRef.current.some((item) => item.key !== taskKey && item.status === 'uploading');
       setUploading(nextUploading);
@@ -206,14 +266,14 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
       }
       onUploaded();
     } catch (error: any) {
-      if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') {
+      if (isAbortError(error)) {
         return;
       }
 
       updateTask(taskKey, { status: 'error' });
       setMessage(error.response?.data?.error || '上传失败，请稍后重试');
     } finally {
-      controllersRef.current[taskKey] = null;
+      abortTaskControllers(taskKey);
       syncUploadingState(tasksRef.current);
     }
   };
@@ -254,13 +314,13 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
   };
 
   const handlePause = (taskKey: string) => {
-    controllersRef.current[taskKey]?.abort();
+    abortTaskControllers(taskKey);
     updateTask(taskKey, { status: 'paused' });
   };
 
   const handleCancel = async (taskKey: string) => {
     const task = tasksRef.current.find((item) => item.key === taskKey);
-    controllersRef.current[taskKey]?.abort();
+    abortTaskControllers(taskKey);
 
     if (task?.uploadId) {
       try {
@@ -278,7 +338,7 @@ export function FileUpload({ onUploaded }: { onUploaded: () => void }) {
   return (
     <div className="card">
       <h2>上传文件</h2>
-      <p className="upload-tip">支持所有文件类型上传，单文件默认最大 5GB。</p>
+      <p className="upload-tip">支持所有文件类型上传，单文件最大 5GB（大文件使用分片上传）。</p>
       <select value={spaceType} onChange={(e) => setSpaceType(e.target.value as 'personal' | 'public')}>
         <option value="public">公共空间</option>
         <option value="personal">个人空间</option>

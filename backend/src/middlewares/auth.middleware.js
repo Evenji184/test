@@ -4,8 +4,8 @@ const User = require('../models/user.model');
 // 验证JWT Token
 const authenticate = async (req, res, next) => {
   try {
-    // 从请求头获取token
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // 优先从请求头获取token，兼容浏览器直接访问下载链接时通过query传递token
+    const token = req.header('Authorization')?.replace('Bearer ', '') || req.query.token;
     
     if (!token) {
       return res.status(401).json({ 

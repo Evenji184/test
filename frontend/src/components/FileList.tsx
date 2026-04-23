@@ -12,6 +12,24 @@ interface DownloadTask {
   fileName?: string;
 }
 
+const formatFileSize = (size?: number | string | null) => {
+  if (typeof size === 'string' && size.trim()) {
+    return size;
+  }
+
+  const bytes = typeof size === 'number' && Number.isFinite(size) ? size : 0;
+  if (bytes <= 0) {
+    return '0 B';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** unitIndex;
+  const precision = value >= 100 || unitIndex === 0 ? 0 : value >= 10 ? 1 : 2;
+
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+};
+
 export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: SharedFile[]; onRefresh: () => void; currentUserId?: number; isAdmin?: boolean }) {
   const DOWNLOAD_CHUNK_SIZE = 2 * 1024 * 1024;
   const MAX_CONCURRENT_DOWNLOADS = 3;
@@ -72,6 +90,16 @@ export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: 
     link.click();
     link.remove();
     window.URL.revokeObjectURL(blobUrl);
+  };
+
+  const triggerBrowserDownload = (downloadUrl: string, fileName?: string) => {
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = fileName || '';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const removeDownloadTask = (id: string) => {
@@ -254,6 +282,17 @@ export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: 
     }
   };
 
+  const handleBrowserDownload = async (id: string, originalName: string) => {
+    try {
+      setMessage('');
+      triggerBrowserDownload(fileService.buildDownloadUrl(id), originalName);
+      setMessage(`已使用浏览器下载器开始下载：${originalName}`);
+    } catch (error: any) {
+      console.error('[Download] 浏览器原生下载触发失败，回退分片下载', error);
+      await handleDownload(id, originalName);
+    }
+  };
+
   const handlePauseDownload = (id: string) => {
     console.log('[Download] 暂停下载', { fileId: id, currentProgress: downloadTasksRef.current[id]?.progress, downloadedBytes: downloadTasksRef.current[id]?.downloadedBytes });
     downloadTasksRef.current[id]?.controller?.abort();
@@ -321,7 +360,10 @@ export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: 
               return (
                 <>
             <div className="file-list-meta">
-              <span className="file-name" title={file.originalName}>{file.originalName}</span>
+              <span className="file-name" title={`${file.originalName} (${formatFileSize(file.formattedSize ?? file.size)})`}>
+                {file.originalName}
+              </span>
+              <small>大小：{formatFileSize(file.formattedSize ?? file.size)}</small>
               <small>[{file.spaceType === 'personal' ? '个人空间' : '公共空间'}]</small>
               {file.uploadedBy && typeof file.uploadedBy === 'object' && (
                 <small> 上传者：{file.uploadedBy.username}</small>
@@ -329,7 +371,7 @@ export function FileList({ files, onRefresh, currentUserId, isAdmin }: { files: 
             </div>
             <div className="file-actions">
               {(!task || ['pending', 'paused', 'error'].includes(task.status)) && (
-                <button type="button" onClick={() => (task?.status === 'paused' ? handleResumeDownload(String(file.id), file.originalName) : handleDownload(String(file.id), file.originalName))}>
+                <button type="button" onClick={() => (task?.status === 'paused' ? handleResumeDownload(String(file.id), file.originalName) : handleBrowserDownload(String(file.id), file.originalName))}>
                   {!task ? '下载' : task.status === 'paused' ? '继续下载' : '重新下载'}
                 </button>
               )}

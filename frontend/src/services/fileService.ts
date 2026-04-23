@@ -1,4 +1,5 @@
 import { api } from './api';
+import { getApiBaseURL } from './api';
 
 interface InitUploadPayload {
   originalName: string;
@@ -62,6 +63,18 @@ export const fileService = {
   },
   deleteFile(id: string) {
     return api.delete(`/files/${id}`).then((res) => res.data);
+  },
+  buildDownloadUrl(id: string) {
+    const token = localStorage.getItem('token');
+    const baseURL = getApiBaseURL();
+    const normalizedBaseURL = /^https?:\/\//i.test(baseURL) ? baseURL : `${window.location.origin}${baseURL.startsWith('/') ? '' : '/'}${baseURL}`;
+    const downloadUrl = new URL(`files/${id}/download`, normalizedBaseURL.endsWith('/') ? normalizedBaseURL : `${normalizedBaseURL}/`);
+
+    if (token) {
+      downloadUrl.searchParams.set('token', token);
+    }
+
+    return downloadUrl.toString();
   },
   async downloadFile(id: string, fallbackName?: string, options?: DownloadOptions) {
     const startByte = options?.startByte ?? 0;

@@ -16,6 +16,8 @@ const getBaseURL = () => {
   return defaultBaseURL;
 };
 
+export const getApiBaseURL = () => getBaseURL();
+
 export const api = axios.create({
   baseURL: getBaseURL(),
   withCredentials: true,

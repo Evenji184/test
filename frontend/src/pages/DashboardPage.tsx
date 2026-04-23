@@ -10,6 +10,7 @@ export interface SharedFile {
   originalName: string;
   mimetype: string;
   size: number;
+  formattedSize?: string;
   downloads: number;
   createdAt: string;
   spaceType: 'personal' | 'public';

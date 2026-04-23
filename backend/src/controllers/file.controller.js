@@ -94,6 +94,84 @@ const removeChunkDir = (uploadId) => {
   }
 };
 
+const removeUploadedFile = (targetPath) => {
+  if (targetPath && fs.existsSync(targetPath) && isPathInsideUploadDir(targetPath)) {
+    fs.rmSync(targetPath, { force: true });
+  }
+};
+
+const getChunkStats = (chunkDir, totalChunks) => {
+  const chunkStats = [];
+
+  for (let index = 0; index < totalChunks; index += 1) {
+    const chunkPath = path.join(chunkDir, `${index}.part`);
+    if (!fs.existsSync(chunkPath)) {
+      const missingChunkError = new Error(`缺少第 ${index + 1} 个分片`);
+      missingChunkError.statusCode = 400;
+      throw missingChunkError;
+    }
+
+    const { size } = fs.statSync(chunkPath);
+    chunkStats.push({ index, chunkPath, size });
+  }
+
+  return chunkStats;
+};
+
+const mergeChunkFiles = async (chunkDir, totalChunks, targetPath) => {
+  const writeStream = fs.createWriteStream(targetPath);
+
+  try {
+    const chunkStats = getChunkStats(chunkDir, totalChunks);
+
+    for (const { index, chunkPath, size } of chunkStats) {
+      await new Promise((resolve, reject) => {
+        const readStream = fs.createReadStream(chunkPath);
+
+        const cleanup = () => {
+          readStream.removeListener('error', onReadError);
+          readStream.removeListener('end', onReadEnd);
+          writeStream.removeListener('error', onWriteError);
+        };
+
+        const onReadError = (error) => {
+          cleanup();
+          reject(error);
+        };
+
+        const onWriteError = (error) => {
+          cleanup();
+          reject(error);
+        };
+
+        const onReadEnd = () => {
+          cleanup();
+          console.log('[Merge] 分片写入完成', {
+            chunkIndex: index,
+            chunkSize: size,
+            chunkPath
+          });
+          resolve();
+        };
+
+        readStream.on('error', onReadError);
+        writeStream.on('error', onWriteError);
+        readStream.on('end', onReadEnd);
+        readStream.pipe(writeStream, { end: false });
+      });
+    }
+
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+      writeStream.end();
+    });
+  } catch (error) {
+    writeStream.destroy();
+    throw error;
+  }
+};
+
 const initUpload = async (req, res, next) => {
   try {
     if (!req.userId) {
@@ -171,6 +249,14 @@ const uploadChunk = async (req, res, next) => {
 
     fs.renameSync(req.file.path, targetChunkPath);
 
+    const chunkSize = fs.statSync(targetChunkPath).size;
+    console.log('[Upload] 分片上传完成', {
+      uploadId,
+      fileId: file.id,
+      chunkIndex: normalizedChunkIndex,
+      chunkSize
+    });
+
     const uploadedChunks = Array.from(new Set([...normalizeUploadedChunks(file.uploadedChunks), normalizedChunkIndex])).sort((a, b) => a - b);
 
     await file.update({
@@ -205,46 +291,64 @@ const mergeChunks = async (req, res, next) => {
       return res.status(404).json({ success: false, error: '上传任务不存在' });
     }
 
-    const uploadedChunks = normalizeUploadedChunks(file.uploadedChunks);
-    if (uploadedChunks.length !== file.totalChunks) {
-      return res.status(400).json({ success: false, error: '仍有分片未上传完成' });
-    }
-
     const chunkDir = getChunkDir(uploadId);
     if (!fs.existsSync(chunkDir)) {
       return res.status(404).json({ success: false, error: '分片目录不存在' });
     }
 
-    const writeStream = fs.createWriteStream(file.path);
+    const chunkStats = getChunkStats(chunkDir, file.totalChunks);
+    const uploadedChunks = chunkStats.map(({ index }) => index);
+    
+    const expectedSize = Number(file.size);
+    const totalChunkSize = chunkStats.reduce((sum, chunk) => sum + chunk.size, 0);
 
-    for (let index = 0; index < file.totalChunks; index += 1) {
-      const chunkPath = path.join(chunkDir, `${index}.part`);
-      if (!fs.existsSync(chunkPath)) {
-        writeStream.close();
-        return res.status(400).json({ success: false, error: `缺少第 ${index + 1} 个分片` });
-      }
-
-      const chunkBuffer = fs.readFileSync(chunkPath);
-      writeStream.write(chunkBuffer);
-    }
-
-    writeStream.end();
-
-    await new Promise((resolve, reject) => {
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
+    console.log('[Merge] 合并前校验', {
+      fileId: file.id,
+      uploadId,
+      originalName: file.originalName,
+      expectedSize,
+      totalChunkSize,
+      totalChunks: file.totalChunks,
+      uploadedChunks: uploadedChunks.length
     });
+
+    await mergeChunkFiles(chunkDir, file.totalChunks, file.path);
 
     const actualSize = fs.statSync(file.path).size;
     console.log('[Merge] 文件合并完成', {
       fileId: file.id,
       uploadId,
       originalName: file.originalName,
-      databaseSize: file.size,
+      expectedSize,
+      totalChunkSize,
       actualSize,
       totalChunks: file.totalChunks,
       uploadedChunks: uploadedChunks.length
     });
+
+    if (actualSize !== expectedSize) {
+      console.error('[Merge] 文件大小校验失败', {
+        fileId: file.id,
+        uploadId,
+        originalName: file.originalName,
+        expectedSize,
+        totalChunkSize,
+        actualSize,
+        difference: actualSize - expectedSize
+      });
+
+      removeUploadedFile(file.path);
+      removeChunkDir(uploadId);
+
+      await file.update({
+        uploadStatus: 'failed'
+      });
+
+      return res.status(500).json({
+        success: false,
+        error: '文件合并后大小校验失败，已清理异常文件'
+      });
+    }
 
     await file.update({
       uploadStatus: 'completed',
@@ -255,6 +359,9 @@ const mergeChunks = async (req, res, next) => {
 
     res.json({ success: true, data: file });
   } catch (error) {
+    if (error.statusCode === 400) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
     next(error);
   }
 };
@@ -283,9 +390,7 @@ const cancelUpload = async (req, res, next) => {
 
     removeChunkDir(uploadId);
 
-    if (file.path && fs.existsSync(file.path) && isPathInsideUploadDir(file.path)) {
-      fs.rmSync(file.path, { force: true });
-    }
+    removeUploadedFile(file.path);
 
     await file.destroy();
 

@@ -38,7 +38,7 @@ File.init(
       allowNull: false
     },
     size: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: false
     },
     path: {
