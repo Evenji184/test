@@ -49,7 +49,7 @@ body {
 .header a {
   color: #fff;
   text-decoration: none;
-  min-height: var(--touch-min);
+  padding: 4px 0;
   display: flex;
   align-items: center;
 }
@@ -58,11 +58,11 @@ body {
   background: transparent;
   border: none;
   color: #fff;
-  padding: 0;
+  padding: 4px 0;
   cursor: pointer;
-  min-height: var(--touch-min);
   display: flex;
   align-items: center;
+  min-height: auto;
 }
 
 .header-nav-toggle {
@@ -125,8 +125,13 @@ body {
   background: var(--color-card);
   border-radius: var(--radius);
   padding: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   box-shadow: var(--shadow);
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 1.1em;
 }
 
 .form {
@@ -295,14 +300,26 @@ button:disabled {
   gap: 16px;
 }
 
-.admin-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.user-card h2 {
+  margin: 0 0 4px;
+  font-size: 1em;
 }
 
-.logout-button {
-  white-space: nowrap;
+.user-card p {
+  margin: 2px 0;
+  line-height: 1.4;
+}
+
+.user-card-info {
+  min-width: 0;
+}
+
+.user-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .upload-tip,
@@ -316,10 +333,6 @@ button:disabled {
 
 .error-text {
   color: var(--color-danger);
-}
-
-.dashboard-link-button {
-  color: var(--color-primary);
 }
 
 .modal-overlay {
@@ -350,6 +363,7 @@ button:disabled {
 .secondary-button {
   background: #fff;
   color: var(--color-primary);
+  border: 1px solid var(--color-primary);
 }
 
 .form-inline {
@@ -422,8 +436,13 @@ td {
     display: none;
     width: 100%;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
     padding-top: 8px;
+  }
+
+  .header nav a,
+  .header nav .link-button {
+    padding: 8px 0;
   }
 
   .header nav.nav-open {
@@ -435,13 +454,19 @@ td {
   }
 
   .container {
-    margin: 16px auto;
+    margin: 12px auto;
     padding: 0 12px;
   }
 
   .card {
     padding: 16px;
     border-radius: 10px;
+    margin-bottom: 12px;
+  }
+
+  .card h2 {
+    font-size: 1em;
+    margin-bottom: 8px;
   }
 
   .user-card {
@@ -449,8 +474,8 @@ td {
     align-items: stretch;
   }
 
-  .logout-button {
-    width: 100%;
+  .user-card-actions {
+    justify-content: flex-start;
   }
 
   .modal-actions {
@@ -463,6 +488,8 @@ td {
 
   .file-list li {
     align-items: flex-start;
+    gap: 8px;
+    padding: 8px 0;
   }
 
   .file-actions {
@@ -472,6 +499,7 @@ td {
   .file-actions button {
     flex: 1 1 120px;
     min-width: 80px;
+    padding: 8px 10px;
   }
 
   .table-wrapper {
@@ -482,23 +510,43 @@ td {
     display: block;
   }
 
+  .user-card-item {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
   .progress-bar {
     height: 14px;
+  }
+
+  .upload-tip {
+    font-size: 0.9em;
   }
 }
 
 /* ========== 480px 手机断点 ========== */
 @media (max-width: 480px) {
   .header {
-    padding: 14px 12px;
+    padding: 12px;
+  }
+
+  .header h1 {
+    font-size: 1em;
   }
 
   .container {
     padding: 0 10px;
+    margin: 8px auto;
   }
 
   .card {
-    padding: 14px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  .card h2 {
+    font-size: 0.95em;
+    margin-bottom: 6px;
   }
 
   .form input,
@@ -526,6 +574,10 @@ td {
     gap: 4px;
   }
 
+  .upload-tip {
+    font-size: 0.85em;
+  }
+
   .file-name {
     white-space: normal;
     word-break: break-all;
@@ -535,8 +587,40 @@ td {
     font-size: 0.85em;
   }
 
+  .file-list li {
+    padding: 6px 0;
+    gap: 6px;
+  }
+
+  .file-actions button {
+    padding: 6px 10px;
+    min-width: 70px;
+  }
+
   .task-action-row button {
     flex: 1 1 auto;
-    min-width: 80px;
+    min-width: 70px;
+    padding: 6px 10px;
+  }
+
+  .modal-overlay {
+    padding: 8px;
+  }
+
+  .modal-content {
+    max-width: 100%;
+  }
+
+  .auth-subtitle {
+    font-size: 0.85em;
+    margin-bottom: 8px;
+  }
+
+  .user-card-item {
+    padding: 10px;
+  }
+
+  .user-card-item p {
+    font-size: 0.9em;
   }
 }

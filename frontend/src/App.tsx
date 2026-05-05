@@ -113,7 +113,7 @@ export default function App() {
             path="/"
             element={
               <ProtectedRoute hasToken={hasToken} loading={loading}>
-                <DashboardPage />
+                <DashboardPage currentUser={user} />
               </ProtectedRoute>
             }
           />

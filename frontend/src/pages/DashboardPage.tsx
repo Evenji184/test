@@ -17,10 +17,10 @@ export interface SharedFile {
   uploadedBy?: number | { id: number; username: string; email: string };
 }
 
-export function DashboardPage() {
+export function DashboardPage({ currentUser }: { currentUser?: { id: number; username: string; email: string; role: 'user' | 'admin' } | null }) {
   const navigate = useNavigate();
   const [files, setFiles] = useState<SharedFile[]>([]);
-  const [user, setUser] = useState<{ id: number; username: string; email: string; role: 'user' | 'admin' } | null>(null);
+  const [user, setUser] = useState<{ id: number; username: string; email: string; role: 'user' | 'admin' } | null>(currentUser ?? null);
   const [message, setMessage] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -112,8 +112,9 @@ export function DashboardPage() {
   };
 
   useEffect(() => {
-    setShowPasswordModal(false);
-    loadProfile();
+    if (!user) {
+      loadProfile();
+    }
   }, []);
 
   useEffect(() => {
@@ -123,28 +124,26 @@ export function DashboardPage() {
   return (
     <section>
       <div className="card user-card">
-        <div>
+        <div className="user-card-info">
           <h2>当前用户</h2>
           {user ? <p>{user.username}（{user.email} / {user.role}）</p> : <p>未登录</p>}
           {message && <p className="status-message error-text">{message}</p>}
-          {user && (
-            <p>
-              <button type="button" className="link-button dashboard-link-button" onClick={() => setShowPasswordModal(true)}>
-                修改密码
-              </button>
-            </p>
-          )}
-          {user?.role === 'admin' && (
-            <p className="admin-actions">
-              <button type="button" className="link-button" onClick={() => navigate('/register')}>注册账号</button>
-              <button type="button" className="link-button" onClick={() => navigate('/users')}>账号管理</button>
-            </p>
-          )}
         </div>
         {user && (
-          <button type="button" className="logout-button" onClick={handleLogout}>
-            退出登录
-          </button>
+          <div className="user-card-actions">
+            <button type="button" className="secondary-button" onClick={() => setShowPasswordModal(true)}>
+              修改密码
+            </button>
+            {user?.role === 'admin' && (
+              <>
+                <button type="button" className="secondary-button" onClick={() => navigate('/register')}>注册账号</button>
+                <button type="button" className="secondary-button" onClick={() => navigate('/users')}>账号管理</button>
+              </>
+            )}
+            <button type="button" className="danger-button" onClick={handleLogout}>
+              退出登录
+            </button>
+          </div>
         )}
       </div>
       <div className="card">
