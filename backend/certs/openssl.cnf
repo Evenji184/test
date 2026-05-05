@@ -1,0 +1,12 @@
+[req]
+default_bits = 4096
+prompt = no
+distinguished_name = dn
+x509_extensions = v3_ca
+
+[dn]
+CN = localhost
+
+[v3_ca]
+subjectAltName = DNS:localhost,IP:127.0.0.1
+basicConstraints = CA:TRUE

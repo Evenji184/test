@@ -85,6 +85,12 @@ app.use(cors({
       return;
     }
 
+    // 允许 cloudflare quick tunnel 地址
+    if (/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(origin)) {
+      callback(null, true);
+      return;
+    }
+
     callback(new Error(`CORS 不允许该来源访问: ${origin}`));
   },
   credentials: true,
