@@ -78,25 +78,31 @@ export default function App() {
     loadProfile();
   }, [hasToken, location.pathname, navigate]);
 
+  const [navOpen, setNavOpen] = useState(false);
+
   const handleLogout = () => {
     authService.logout();
     setUser(null);
     setHasToken(false);
+    setNavOpen(false);
     navigate('/login');
   };
+
+  const closeNav = () => setNavOpen(false);
 
   return (
     <div>
       <header className="header">
         <h1>文件共享系统</h1>
-        <nav>
-          <Link to="/">首页</Link>
-          {user?.role === 'admin' && <Link to="/register">注册账号</Link>}
-          {user?.role === 'admin' && <Link to="/users">账号管理</Link>}
+        <button type="button" className={`header-nav-toggle ${navOpen ? 'nav-open' : ''}`} onClick={() => setNavOpen(!navOpen)} aria-label="菜单"><span /></button>
+        <nav className={navOpen ? 'nav-open' : ''}>
+          <Link to="/" onClick={closeNav}>首页</Link>
+          {user?.role === 'admin' && <Link to="/register" onClick={closeNav}>注册账号</Link>}
+          {user?.role === 'admin' && <Link to="/users" onClick={closeNav}>账号管理</Link>}
           {hasToken ? (
             <button type="button" className="link-button" onClick={handleLogout}>退出登录</button>
           ) : (
-            <Link to="/login">登录 / 注册</Link>
+            <Link to="/login" onClick={closeNav}>登录 / 注册</Link>
           )}
         </nav>
       </header>

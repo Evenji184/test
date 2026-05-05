@@ -55,41 +55,64 @@ export function UserManagePage() {
       {loading ? (
         <p>加载中...</p>
       ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>用户名</th>
-                <th>邮箱</th>
-                <th>角色</th>
-                <th>创建时间</th>
-                <th>最后登录</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.id}</td>
-                  <td>{user.username}</td>
-                  <td>{user.email}</td>
-                  <td>
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value as 'user' | 'admin')}
-                      disabled={user.username === 'evenji'}
-                    >
-                      <option value="user">user</option>
-                      <option value="admin">admin</option>
-                    </select>
-                  </td>
-                  <td>{new Date(user.createdAt).toLocaleString()}</td>
-                  <td>{user.lastLogin ? new Date(user.lastLogin).toLocaleString() : '从未登录'}</td>
+        <>
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>用户名</th>
+                  <th>邮箱</th>
+                  <th>角色</th>
+                  <th>创建时间</th>
+                  <th>最后登录</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.id}</td>
+                    <td>{user.username}</td>
+                    <td>{user.email}</td>
+                    <td>
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user.id, e.target.value as 'user' | 'admin')}
+                        disabled={user.username === 'evenji'}
+                      >
+                        <option value="user">user</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    </td>
+                    <td>{new Date(user.createdAt).toLocaleString()}</td>
+                    <td>{user.lastLogin ? new Date(user.lastLogin).toLocaleString() : '从未登录'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="user-cards">
+            {users.map((user) => (
+              <div key={user.id} className="user-card-item card">
+                <p><strong>ID</strong> {user.id}</p>
+                <p><strong>用户名</strong> {user.username}</p>
+                <p><strong>邮箱</strong> {user.email}</p>
+                <p><strong>角色</strong>
+                  <select
+                    value={user.role}
+                    onChange={(e) => handleRoleChange(user.id, e.target.value as 'user' | 'admin')}
+                    disabled={user.username === 'evenji'}
+                  >
+                    <option value="user">user</option>
+                    <option value="admin">admin</option>
+                  </select>
+                </p>
+                <p><strong>创建时间</strong> {new Date(user.createdAt).toLocaleString()}</p>
+                <p><strong>最后登录</strong> {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : '从未登录'}</p>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );
