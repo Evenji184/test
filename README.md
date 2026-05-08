@@ -102,7 +102,7 @@ HTTPS_CERT_PATH=./certs/localhost-cert.pem
 
 # 默认管理员
 DEFAULT_ADMIN_PASSWORD=admin123456
-DEFAULT_ADMIN_EMAIL=evenji@example.com
+DEFAULT_ADMIN_EMAIL=admin@example.com
 ```
 
 > 启动时必须存在的变量：`DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`、`JWT_SECRET`，缺失则服务立即退出。
